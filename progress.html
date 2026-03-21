@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>nhttp3 — Phase 1 Progress</title>
-<meta http-equiv="refresh" content="5">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'SF Mono', 'Fira Code', monospace; background: #0a0a0a; color: #e0e0e0; padding: 2rem; }
@@ -19,6 +18,7 @@
   .stat-label { color: #666; font-size: 0.75rem; margin-top: 0.25rem; }
   .bar-bg { background: #1a1a1a; border-radius: 4px; height: 8px; margin-bottom: 2rem; overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #4ade80, #22d3ee); transition: width 0.5s; }
+  .complete-banner { background: #052e16; border: 1px solid #166534; border-radius: 8px; padding: 1rem 1.5rem; margin-bottom: 2rem; color: #4ade80; font-weight: bold; text-align: center; }
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; color: #666; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.5rem 1rem; border-bottom: 1px solid #252525; }
   td { padding: 0.6rem 1rem; border-bottom: 1px solid #151515; font-size: 0.85rem; }
@@ -26,23 +26,22 @@
   .chunk-header td { color: #888; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 1.2rem; background: none; border-bottom: 1px solid #252525; }
   .status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
   .status.done { background: #052e16; color: #4ade80; }
-  .status.active { background: #1e1b4b; color: #818cf8; }
-  .status.pending { background: #1a1a1a; color: #555; }
   .tests { color: #4ade80; font-size: 0.8rem; }
-  .tests.zero { color: #555; }
 </style>
 </head>
 <body>
 <h1>nhttp3 — Phase 1: Foundation</h1>
 <p class="subtitle">QUIC + HTTP/3 implementation in Rust &middot; feat/phase1-foundation</p>
 
+<div class="complete-banner">PHASE 1 COMPLETE — 17/17 tasks done, 90 tests passing</div>
+
 <div class="stats">
-  <div class="stat"><div class="stat-val green" id="done-count">8</div><div class="stat-label">Tasks Done</div></div>
-  <div class="stat"><div class="stat-val blue" id="test-count">49</div><div class="stat-label">Tests Passing</div></div>
-  <div class="stat"><div class="stat-val amber" id="remaining">9</div><div class="stat-label">Remaining</div></div>
+  <div class="stat"><div class="stat-val green">17</div><div class="stat-label">Tasks Done</div></div>
+  <div class="stat"><div class="stat-val blue">90</div><div class="stat-label">Tests Passing</div></div>
+  <div class="stat"><div class="stat-val green">0</div><div class="stat-label">Remaining</div></div>
 </div>
 
-<div class="bar-bg"><div class="bar-fill" id="progress-bar" style="width: 47%"></div></div>
+<div class="bar-bg"><div class="bar-fill" style="width: 100%"></div></div>
 
 <table>
 <thead><tr><th>#</th><th>Task</th><th>Status</th><th>Tests</th><th>Commit</th></tr></thead>
@@ -60,23 +59,23 @@
 <tr><td>8</td><td>Frame Serialization + Roundtrips</td><td><span class="status done">done</span></td><td class="tests">12</td><td>9c82d7f</td></tr>
 
 <tr class="chunk-header"><td colspan="5">Chunk 3 — Transport Parameters</td></tr>
-<tr><td>9</td><td>Transport Params + Error Codes (RFC 9000 §18)</td><td><span class="status active">active</span></td><td class="tests zero">—</td><td>—</td></tr>
+<tr><td>9</td><td>Transport Params + Error Codes (RFC 9000 §18)</td><td><span class="status done">done</span></td><td class="tests">4</td><td>215cecd</td></tr>
 
 <tr class="chunk-header"><td colspan="5">Chunk 4 — Crypto + TLS</td></tr>
-<tr><td>10</td><td>Crypto Key Management (RFC 9001 §5)</td><td><span class="status pending">pending</span></td><td class="tests zero">—</td><td>—</td></tr>
-<tr><td>11</td><td>TLS Integration (rustls)</td><td><span class="status pending">pending</span></td><td class="tests zero">—</td><td>—</td></tr>
+<tr><td>10</td><td>Crypto Key Management (RFC 9001 §5)</td><td><span class="status done">done</span></td><td class="tests">2</td><td>215cecd</td></tr>
+<tr><td>11</td><td>TLS Integration (rustls)</td><td><span class="status done">done</span></td><td class="tests">1</td><td>215cecd</td></tr>
 
 <tr class="chunk-header"><td colspan="5">Chunk 5 — Connection + Streams</td></tr>
-<tr><td>12</td><td>Connection State Machine (RFC 9000 §10)</td><td><span class="status pending">pending</span></td><td class="tests zero">—</td><td>—</td></tr>
-<tr><td>13</td><td>Streams + Flow Control (RFC 9000 §2-3)</td><td><span class="status pending">pending</span></td><td class="tests zero">—</td><td>—</td></tr>
+<tr><td>12</td><td>Connection State Machine (RFC 9000 §10)</td><td><span class="status done">done</span></td><td class="tests">4</td><td>215cecd</td></tr>
+<tr><td>13</td><td>Streams + Flow Control (RFC 9000 §2-3)</td><td><span class="status done">done</span></td><td class="tests">12</td><td>215cecd</td></tr>
 
 <tr class="chunk-header"><td colspan="5">Chunk 6 — Recovery</td></tr>
-<tr><td>14</td><td>ACK Tracking (RFC 9002)</td><td><span class="status pending">pending</span></td><td class="tests zero">—</td><td>—</td></tr>
-<tr><td>15</td><td>NewReno Congestion Control (RFC 9002 §7)</td><td><span class="status pending">pending</span></td><td class="tests zero">—</td><td>—</td></tr>
+<tr><td>14</td><td>ACK Tracking (RFC 9002)</td><td><span class="status done">done</span></td><td class="tests">5</td><td>215cecd</td></tr>
+<tr><td>15</td><td>NewReno Congestion Control (RFC 9002 §7)</td><td><span class="status done">done</span></td><td class="tests">6</td><td>215cecd</td></tr>
 
 <tr class="chunk-header"><td colspan="5">Chunk 7 — Config + Integration</td></tr>
-<tr><td>16</td><td>Endpoint Configuration</td><td><span class="status pending">pending</span></td><td class="tests zero">—</td><td>—</td></tr>
-<tr><td>17</td><td>Integration Test — Full Handshake</td><td><span class="status pending">pending</span></td><td class="tests zero">—</td><td>—</td></tr>
+<tr><td>16</td><td>Endpoint Configuration</td><td><span class="status done">done</span></td><td class="tests">1</td><td>215cecd</td></tr>
+<tr><td>17</td><td>Integration Test — Full Handshake</td><td><span class="status done">done</span></td><td class="tests">6</td><td>215cecd</td></tr>
 </tbody>
 </table>
 </body>
