@@ -62,11 +62,11 @@
 <h1>nhttp3</h1>
 <p class="subtitle">Production-grade QUIC + HTTP/3 in Rust &middot; feat/phase1-foundation</p>
 
-<div class="banner">ALL PHASES COMPLETE &middot; 171 tests &middot; 8 crates &middot; 3 benchmark suites</div>
+<div class="banner">ALL PHASES COMPLETE &middot; 178 tests &middot; 8 crates &middot; 3 benchmark suites &middot; Security hardened</div>
 
 <div class="stats">
   <div class="stat"><div class="stat-val green">6/6</div><div class="stat-label">Phases</div></div>
-  <div class="stat"><div class="stat-val blue">171</div><div class="stat-label">Tests</div></div>
+  <div class="stat"><div class="stat-val blue">178</div><div class="stat-label">Tests</div></div>
   <div class="stat"><div class="stat-val cyan">8</div><div class="stat-label">Crates</div></div>
   <div class="stat"><div class="stat-val purple">7</div><div class="stat-label">RFCs</div></div>
 </div>
@@ -241,6 +241,38 @@
   </div>
 </div>
 
+<!-- ==================== GAP ANALYSIS ==================== -->
+
+<h2>Gap Analysis (from aioquic + quiche issues)</h2>
+
+<table>
+<thead><tr><th>Priority</th><th>Issue</th><th>Source</th><th>Status</th></tr></thead>
+<tbody>
+<tr class="section-row"><td colspan="4">P0 — Security</td></tr>
+<tr><td>P0</td><td>Limit ACK range count (DoS prevention)</td><td>aioquic #549</td><td><span class="status done">fixed</span></td></tr>
+<tr><td>P0</td><td>CRYPTO buffer size limit (128KB)</td><td>aioquic #501</td><td><span class="status done">fixed</span></td></tr>
+<tr><td>P0</td><td>Initial packet minimum 1200 bytes</td><td>aioquic #401</td><td><span class="status done">fixed</span></td></tr>
+<tr><td>P0</td><td>Retry token AEAD encryption</td><td>quiche #2334</td><td style="color:#fbbf24">planned</td></tr>
+
+<tr class="section-row"><td colspan="4">P1 — Protocol Correctness</td></tr>
+<tr><td>P1</td><td>Idle timeout = min(local, remote)</td><td>aioquic #466</td><td><span class="status done">fixed</span></td></tr>
+<tr><td>P1</td><td>STOP_SENDING &rarr; RESET_STREAM final_size</td><td>aioquic #629</td><td style="color:#fbbf24">planned</td></tr>
+<tr><td>P1</td><td>Duplicate RETIRE_CONNECTION_ID</td><td>quiche #1833</td><td style="color:#fbbf24">planned</td></tr>
+<tr><td>P1</td><td>Large HEADERS frame spanning packets</td><td>quiche #2252</td><td style="color:#fbbf24">planned</td></tr>
+<tr><td>P1</td><td>Premature Handshake key discard</td><td>aioquic #622</td><td style="color:#fbbf24">planned</td></tr>
+
+<tr class="section-row"><td colspan="4">P2 — Features (Roadmap)</td></tr>
+<tr><td>P2</td><td>QLOG standardized logging</td><td>quiche #2378</td><td style="color:#555">roadmap</td></tr>
+<tr><td>P2</td><td>WebTransport (RFC 9297)</td><td>aioquic #630</td><td style="color:#555">roadmap</td></tr>
+<tr><td>P2</td><td>BBR congestion control</td><td>quiche #1829</td><td style="color:#555">roadmap</td></tr>
+<tr><td>P2</td><td>Session resumption / 0-RTT e2e</td><td>quiche #1803</td><td style="color:#555">roadmap</td></tr>
+<tr><td>P2</td><td>Multipath QUIC</td><td>aioquic #595</td><td style="color:#555">roadmap</td></tr>
+<tr><td>P2</td><td>MoQ (Media over QUIC)</td><td>quiche #2140</td><td style="color:#555">roadmap</td></tr>
+<tr><td>P2</td><td>Stateless reset oracle protection</td><td>aioquic #555</td><td style="color:#555">roadmap</td></tr>
+<tr><td>P2</td><td>SO_REUSEPORT multi-process</td><td>aioquic #480</td><td style="color:#555">roadmap</td></tr>
+</tbody>
+</table>
+
 <!-- ==================== TASKS ==================== -->
 
 <h2>Implementation Progress</h2>
@@ -274,6 +306,7 @@
 <tr class="section-row"><td colspan="5">Endpoint + Benchmarks</td></tr>
 <tr><td>&mdash;</td><td>Endpoint I/O loop, streams, CID dispatch</td><td><span class="status done">done</span></td><td class="tests">21</td><td>RFC 9000</td></tr>
 <tr><td>&mdash;</td><td>Benchmarks: codec + connection + HTTP/3 vs HTTP/2</td><td><span class="status done">done</span></td><td class="tests">&mdash;</td><td>&mdash;</td></tr>
+<tr><td>&mdash;</td><td>Security hardening (aioquic/quiche issue audit)</td><td><span class="status done">done</span></td><td class="tests">7</td><td>RFC 9000 &sect;10,14</td></tr>
 </tbody>
 </table>
 
