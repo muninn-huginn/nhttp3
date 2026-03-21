@@ -63,6 +63,7 @@ Shared primitives with minimal dependencies.
 - Common error types
 - Connection ID types
 - Shared config structs
+- I/O abstraction traits (`AsyncReadExt`, `AsyncWriteExt`, `UdpSocketExt`) — thin trait layer that tokio implements by default. This enables the WASM target to provide alternative implementations without requiring the full tokio runtime. The traits are minimal (read, write, poll-based) and not a full runtime abstraction.
 
 ---
 
@@ -285,7 +286,8 @@ let body = stream.read_body().await?;
 Thin re-export:
 
 ```rust
-pub use nhttp3_core as core;
+// nhttp3-core is not re-exported to avoid shadowing std::core.
+// Consumers depend on nhttp3_core directly if needed.
 pub use nhttp3_quic as quic;
 pub use nhttp3_qpack as qpack;
 pub use nhttp3_h3 as h3;
@@ -422,6 +424,7 @@ nhttp3-wasm/
 - **Browser**: Uses WebTransport API as underlying transport, nhttp3 handles HTTP/3 framing on top. Browsers don't expose raw UDP sockets.
 - **Non-browser WASM** (Cloudflare Workers, Deno): Full stack runs where UDP socket access is available.
 - Uses `wasm-bindgen-futures` instead of tokio (tokio doesn't work in WASM)
+- The core crates (`nhttp3-core`, `nhttp3-quic`, etc.) use I/O abstraction traits defined in `nhttp3-core`. `nhttp3-wasm` provides WASM-compatible implementations of these traits backed by browser/runtime APIs. This avoids a tokio dependency in the WASM build.
 - JS API returns Promises
 
 ```javascript
@@ -445,6 +448,16 @@ Each crate defines its own error enum with `From` conversions for `?` propagatio
 pub enum Error {
     BufferTooShort,
     InvalidVarInt,
+}
+
+// nhttp3-qpack
+pub enum Error {
+    Core(core::Error),
+    InvalidIndex,
+    TableFull,
+    BlockedStreamLimit,
+    EncoderStreamError,
+    DecoderStreamError,
 }
 
 // nhttp3-quic
@@ -595,6 +608,8 @@ Using `criterion`:
 ---
 
 ## Implementation Phases
+
+> **Planning note:** Each phase is independently plannable and implementable. Implementation plans should be created per-phase, not for the entire spec. Phase 1 is the first plan to create.
 
 ### Phase 1 — Foundation (core + QUIC transport)
 
