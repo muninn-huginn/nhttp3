@@ -1,0 +1,18 @@
+[package]
+name = "nhttp3-ffi"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "C-compatible FFI bindings for nhttp3"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+nhttp3 = { path = "../crates/nhttp3" }
+nhttp3-core = { path = "../crates/nhttp3-core" }
+nhttp3-quic = { path = "../crates/nhttp3-quic" }
+nhttp3-qpack = { path = "../crates/nhttp3-qpack" }
+nhttp3-h3 = { path = "../crates/nhttp3-h3" }
+tokio = { workspace = true }

@@ -1,0 +1,14 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "nhttp3"
+version = "0.1.0"
+description = "Production-grade HTTP/3 library for Python, powered by Rust"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "nhttp3._nhttp3"
