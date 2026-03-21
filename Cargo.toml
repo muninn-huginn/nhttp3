@@ -3,6 +3,9 @@ resolver = "2"
 members = [
     "crates/nhttp3-core",
     "crates/nhttp3-quic",
+    "crates/nhttp3-qpack",
+    "crates/nhttp3-h3",
+    "crates/nhttp3",
 ]
 
 [workspace.package]
@@ -16,3 +19,5 @@ bytes = "1"
 thiserror = "2"
 tokio = { version = "1", features = ["full"] }
 rustls = { version = "0.23", features = ["ring"] }
+http = "1"
+rcgen = "0.13"
