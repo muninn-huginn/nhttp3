@@ -8,6 +8,7 @@ members = [
     "crates/nhttp3",
     "nhttp3-ffi",
     "nhttp3-python",
+    "nhttp3-wasm",
 ]
 
 [workspace.package]
