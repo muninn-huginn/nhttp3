@@ -1,6 +1,7 @@
 pub mod config;
 pub mod connection;
 pub mod crypto;
+pub mod extensions;
 pub mod frame;
 pub mod packet;
 pub mod recovery;
