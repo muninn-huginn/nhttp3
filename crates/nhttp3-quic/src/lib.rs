@@ -6,6 +6,7 @@ pub mod extensions;
 pub mod frame;
 pub mod io_loop;
 pub mod packet;
+pub mod qlog;
 pub mod recovery;
 pub mod stream;
 pub mod tls;

@@ -22,6 +22,7 @@ pub struct Config {
 pub enum CongestionAlgorithm {
     NewReno,
     Cubic,
+    Bbr,
 }
 
 impl Default for Config {
