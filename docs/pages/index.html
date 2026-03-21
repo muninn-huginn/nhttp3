@@ -4,268 +4,313 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>nhttp3 — HTTP/3 in Rust</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0a0a;
-    --surface: #111;
-    --border: #1a1a1a;
-    --text: #e0e0e0;
-    --text-dim: #666;
-    --accent: #22d3ee;
-    --accent2: #4ade80;
-    --purple: #a78bfa;
+    --lab-bg: #0A0A0A;
+    --lab-surface: #141414;
+    --lab-surface-raised: #1E1E1E;
+    --lab-border: #2A2A2A;
+    --lab-border-active: #444444;
+    --lab-text: #E0E0E0;
+    --lab-text-muted: #888888;
+    --lab-text-subtle: #555555;
+    --lab-blue: #4A9EFF;
+    --lab-teal: #2DD4BF;
+    --lab-amber: #F59E0B;
+    --lab-error: #EF4444;
+    --lab-font: 'VT323', 'IBM Plex Mono', monospace;
+    --lab-ease: cubic-bezier(0.16, 1, 0.3, 1);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
-  code, pre, .mono { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; }
+  body { font-family: var(--lab-font); background: var(--lab-bg); color: var(--lab-text); letter-spacing: 0.05em; line-height: 1.5; }
 
-  /* Hero */
-  .hero { padding: 6rem 2rem 4rem; text-align: center; max-width: 800px; margin: 0 auto; }
-  .hero h1 { font-size: 3.5rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 1rem; }
-  .hero h1 span { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .hero p { font-size: 1.2rem; color: var(--text-dim); line-height: 1.6; max-width: 600px; margin: 0 auto 2rem; }
-  .hero-badges { display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; }
-  .badge { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 6px 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; }
-  .badge .dot { width: 8px; height: 8px; border-radius: 50%; }
-  .badge .dot.green { background: var(--accent2); }
-  .badge .dot.cyan { background: var(--accent); }
-  .badge .dot.purple { background: var(--purple); }
+  /* ── Hero ── */
+  .hero { padding: 6rem 2rem 4rem; text-align: center; }
+  .hero h1 { font-size: clamp(3rem, 8vw, 6rem); line-height: 1.1; margin-bottom: 0.5rem; }
+  .hero h1 .glow { color: var(--lab-teal); text-shadow: 0 0 20px rgba(45, 212, 191, 0.3); }
+  .hero .tagline { font-size: 1.25rem; color: var(--lab-text-muted); max-width: 600px; margin: 0 auto 2rem; }
 
-  .install-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 24px; display: inline-block; font-size: 1rem; }
-  .install-box code { color: var(--accent); }
+  .status-bar { display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2.5rem; }
+  .status-item { border: 1px solid var(--lab-border); padding: 0.5rem 1rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; transition: all 150ms var(--lab-ease); }
+  .status-item:hover { border-color: var(--lab-border-active); background: var(--lab-surface); }
+  .status-dot { width: 8px; height: 8px; display: inline-block; }
+  .status-dot.teal { background: var(--lab-teal); box-shadow: 0 0 6px rgba(45, 212, 191, 0.4); }
+  .status-dot.blue { background: var(--lab-blue); box-shadow: 0 0 6px rgba(74, 158, 255, 0.4); }
+  .status-dot.amber { background: var(--lab-amber); box-shadow: 0 0 6px rgba(245, 158, 11, 0.4); }
 
-  /* Sections */
-  .section { padding: 4rem 2rem; max-width: 1000px; margin: 0 auto; }
-  .section h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 1.5rem; }
-  .section h2 span { color: var(--accent); }
+  .install { border: 1px solid var(--lab-border); padding: 0.75rem 2rem; font-size: 1.2rem; display: inline-block; }
+  .install code { color: var(--lab-teal); }
 
-  /* Grid */
-  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
-  .card h3 { font-size: 1rem; margin-bottom: 0.5rem; color: #fff; }
-  .card p { font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; }
-  .card .mono { font-size: 0.8rem; color: var(--accent); margin-bottom: 0.5rem; display: block; }
+  /* ── Sections ── */
+  .section { padding: 3rem 2rem; max-width: 1000px; margin: 0 auto; }
+  .section-label { font-size: 0.75rem; color: var(--lab-text-subtle); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.25rem; }
+  .section h2 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+  .section h2 .accent { color: var(--lab-blue); }
+  .divider { border: none; border-top: 1px solid var(--lab-border); margin: 0; }
 
-  /* RFC table */
-  .rfc-table { width: 100%; border-collapse: collapse; }
-  .rfc-table th { text-align: left; color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.5rem 1rem; border-bottom: 1px solid var(--border); }
-  .rfc-table td { padding: 0.7rem 1rem; border-bottom: 1px solid #111; font-size: 0.9rem; }
-  .rfc-table tr:hover { background: #0d0d0d; }
-  .check { color: var(--accent2); font-weight: bold; }
+  /* ── Instrument Panels (cards) ── */
+  .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0; }
+  .panel { border: 1px solid var(--lab-border); padding: 1.5rem; transition: all 150ms var(--lab-ease); }
+  .panel:hover { background: var(--lab-surface); border-color: var(--lab-border-active); }
+  .panel-name { font-size: 0.85rem; color: var(--lab-blue); margin-bottom: 0.25rem; }
+  .panel h3 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+  .panel p { font-size: 0.95rem; color: var(--lab-text-muted); }
 
-  /* Benchmark bars */
-  .bench-section { margin-top: 2rem; }
-  .bench-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.7rem; }
-  .bench-label { width: 220px; font-size: 0.85rem; color: #aaa; flex-shrink: 0; }
-  .bench-bar-outer { flex: 1; background: #151515; border-radius: 4px; height: 28px; overflow: hidden; }
-  .bench-bar-inner { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; font-size: 0.75rem; font-weight: 600; color: #fff; }
-  .bench-bar-inner.h3 { background: linear-gradient(90deg, #0e7490, #22d3ee); }
-  .bench-bar-inner.h2 { background: linear-gradient(90deg, #6d28d9, #a78bfa); }
-  .bench-value { width: 100px; text-align: right; font-size: 0.85rem; color: #888; flex-shrink: 0; }
-  .bench-legend { display: flex; gap: 2rem; margin-bottom: 1rem; font-size: 0.8rem; color: var(--text-dim); }
-  .legend-dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 6px; }
+  /* ── Data Readouts (benchmarks) ── */
+  .readout-group { margin-bottom: 2rem; }
+  .readout-label { font-size: 0.75rem; color: var(--lab-text-subtle); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 0.75rem; }
+  .readout-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; padding: 0.25rem 0; }
+  .readout-row:hover .readout-bar-fill { filter: brightness(1.2); }
+  .readout-metric { width: 200px; font-size: 0.95rem; color: var(--lab-text-muted); flex-shrink: 0; }
+  .readout-bar { flex: 1; background: var(--lab-surface); height: 24px; border: 1px solid var(--lab-border); position: relative; overflow: hidden; }
+  .readout-bar-fill { height: 100%; display: flex; align-items: center; padding-left: 8px; font-size: 0.8rem; color: var(--lab-bg); font-weight: 700; transition: all 250ms var(--lab-ease); }
+  .readout-bar-fill.teal { background: var(--lab-teal); }
+  .readout-bar-fill.blue { background: var(--lab-blue); }
+  .readout-bar-fill.amber { background: var(--lab-amber); }
+  .readout-bar-fill.muted { background: var(--lab-border-active); color: var(--lab-text-muted); }
+  .readout-value { width: 100px; text-align: right; font-size: 0.95rem; color: var(--lab-text-muted); flex-shrink: 0; }
 
-  /* Arch diagram */
-  .arch { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; overflow-x: auto; }
-  .arch pre { color: var(--accent); font-size: 0.8rem; line-height: 1.6; }
+  .readout-legend { display: flex; gap: 2rem; margin-bottom: 1rem; font-size: 0.85rem; color: var(--lab-text-subtle); }
+  .legend-swatch { width: 12px; height: 12px; display: inline-block; vertical-align: middle; margin-right: 6px; }
 
-  /* Code block */
-  .code-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; overflow-x: auto; margin: 1rem 0; }
-  .code-block pre { font-size: 0.85rem; line-height: 1.5; }
-  .code-block .kw { color: var(--purple); }
-  .code-block .fn { color: var(--accent); }
-  .code-block .str { color: var(--accent2); }
-  .code-block .cm { color: #555; }
+  .readout-note { font-size: 0.85rem; color: var(--lab-text-subtle); margin-top: 0.5rem; border-left: 2px solid var(--lab-border); padding-left: 0.75rem; }
 
-  /* Footer */
-  .footer { padding: 3rem 2rem; text-align: center; color: var(--text-dim); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 4rem; }
-  .footer a { color: var(--accent); text-decoration: none; }
+  /* ── RFC Table ── */
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 0.75rem; color: var(--lab-text-subtle); text-transform: uppercase; letter-spacing: 0.12em; padding: 0.5rem 1rem; border-bottom: 1px solid var(--lab-border); }
+  td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--lab-surface); font-size: 0.95rem; }
+  tr { transition: background 150ms var(--lab-ease); }
+  tr:hover { background: var(--lab-surface); }
+  .rfc-id { color: var(--lab-blue); }
+  .status-on { color: var(--lab-teal); }
+  .status-off { color: var(--lab-text-subtle); }
 
-  /* Security badges */
-  .security-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
-  .sec-item { background: #0a1a0a; border: 1px solid #1a3a1a; border-radius: 8px; padding: 1rem; font-size: 0.85rem; }
-  .sec-item strong { color: var(--accent2); display: block; margin-bottom: 0.3rem; font-size: 0.8rem; }
+  /* ── Security Grid ── */
+  .sec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0; }
+  .sec-cell { border: 1px solid var(--lab-border); padding: 1rem; transition: all 150ms var(--lab-ease); }
+  .sec-cell:hover { background: var(--lab-surface); border-color: var(--lab-border-active); }
+  .sec-cell strong { color: var(--lab-teal); font-size: 0.85rem; display: block; margin-bottom: 0.25rem; }
+  .sec-cell span { font-size: 0.9rem; color: var(--lab-text-muted); }
+
+  /* ── Architecture ── */
+  .arch-panel { border: 1px solid var(--lab-border); padding: 1.5rem; overflow-x: auto; }
+  .arch-panel pre { font-size: 0.85rem; line-height: 1.5; color: var(--lab-blue); }
+
+  /* ── Footer ── */
+  .footer { padding: 2rem; text-align: center; border-top: 1px solid var(--lab-border); margin-top: 3rem; font-size: 0.9rem; color: var(--lab-text-subtle); }
+  .footer a { color: var(--lab-blue); text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+  @media (max-width: 600px) {
+    .readout-metric { width: 120px; font-size: 0.8rem; }
+    .readout-value { width: 70px; font-size: 0.8rem; }
+    .panel-grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
 
-<!-- Hero -->
+<!-- ── HERO ── -->
 <div class="hero">
-  <h1><span>nhttp3</span></h1>
-  <p>Production-grade QUIC + HTTP/3 implementation in Rust. Built from scratch, with Python and WASM bindings.</p>
+  <h1><span class="glow">nhttp3</span></h1>
+  <p class="tagline">Production-grade QUIC + HTTP/3 in Rust. Built from scratch. Every layer visible, every byte accounted for.</p>
 
-  <div class="hero-badges">
-    <div class="badge"><span class="dot green"></span> 198 tests passing</div>
-    <div class="badge"><span class="dot cyan"></span> 7 RFCs implemented</div>
-    <div class="badge"><span class="dot purple"></span> 8 crates</div>
-    <div class="badge"><span class="dot green"></span> Zero unsafe</div>
+  <div class="status-bar">
+    <div class="status-item"><span class="status-dot teal"></span> 198 tests</div>
+    <div class="status-item"><span class="status-dot blue"></span> 7 RFCs</div>
+    <div class="status-item"><span class="status-dot amber"></span> 8 crates</div>
+    <div class="status-item"><span class="status-dot teal"></span> 0 unsafe</div>
   </div>
 
-  <div class="install-box">
-    <code>cargo add nhttp3</code>
-  </div>
+  <div class="install"><code>cargo add nhttp3</code></div>
 </div>
 
-<!-- Crates -->
+<hr class="divider">
+
+<!-- ── CRATES ── -->
 <div class="section">
-  <h2><span>8</span> crates, one stack</h2>
-  <div class="grid-3">
-    <div class="card">
-      <span class="mono">nhttp3-quic</span>
+  <div class="section-label">// modules</div>
+  <h2><span class="accent">8</span> crates, one stack</h2>
+  <div class="panel-grid">
+    <div class="panel">
+      <div class="panel-name">nhttp3-quic</div>
       <h3>QUIC Transport</h3>
-      <p>Packets, frames, TLS 1.3 via rustls, streams with AsyncRead/Write, flow control, loss detection, NewReno + CUBIC + BBR congestion control, QLOG.</p>
+      <p>Packets, frames, TLS 1.3 via rustls, streams, flow control, loss detection, NewReno + CUBIC + BBR, QLOG, endpoint I/O loop.</p>
     </div>
-    <div class="card">
-      <span class="mono">nhttp3-h3</span>
+    <div class="panel">
+      <div class="panel-name">nhttp3-h3</div>
       <h3>HTTP/3 Protocol</h3>
-      <p>Frame codec (DATA, HEADERS, SETTINGS, GOAWAY), pseudo-header validation, HTTP crate type integration, error codes per RFC 9114.</p>
+      <p>Frame codec, pseudo-header validation, HTTP crate types, error codes per RFC 9114.</p>
     </div>
-    <div class="card">
-      <span class="mono">nhttp3-qpack</span>
+    <div class="panel">
+      <div class="panel-name">nhttp3-qpack</div>
       <h3>QPACK Compression</h3>
-      <p>Static table (99 entries), dynamic table with eviction, encoder/decoder with 50% compression on realistic headers.</p>
+      <p>Static table (99 entries), dynamic table, encoder/decoder. 50% compression on realistic headers.</p>
     </div>
-    <div class="card">
-      <span class="mono">nhttp3-python</span>
+    <div class="panel">
+      <div class="panel-name">nhttp3-python</div>
       <h3>Python Bindings</h3>
-      <p>PyO3 with custom async bridge (no pyo3-asyncio). Background tokio runtime, call_soon_threadsafe completions.</p>
+      <p>PyO3 + custom async bridge. No pyo3-asyncio. Tokio runtime on background thread.</p>
     </div>
-    <div class="card">
-      <span class="mono">nhttp3-wasm</span>
+    <div class="panel">
+      <div class="panel-name">nhttp3-wasm</div>
       <h3>WASM Target</h3>
-      <p>wasm-bindgen for browser (WebTransport adapter) and non-browser runtimes (Cloudflare Workers, Deno).</p>
+      <p>wasm-bindgen. Browser via WebTransport, non-browser via raw UDP.</p>
     </div>
-    <div class="card">
-      <span class="mono">nhttp3-ffi</span>
+    <div class="panel">
+      <div class="panel-name">nhttp3-ffi</div>
       <h3>C FFI Layer</h3>
-      <p>Opaque handle types, callback-based async, error codes. Tokio runtime managed internally.</p>
+      <p>Opaque handles, callback-based async, error codes. Runtime managed internally.</p>
     </div>
   </div>
 </div>
 
-<!-- Benchmarks -->
+<hr class="divider">
+
+<!-- ── BENCHMARKS ── -->
 <div class="section">
-  <h2>Benchmarks: <span>HTTP/3 vs HTTP/2</span></h2>
+  <div class="section-label">// performance</div>
+  <h2>Benchmarks: <span class="accent">HTTP/3 vs HTTP/2</span></h2>
 
-  <div class="bench-legend">
-    <span><span class="legend-dot" style="background:var(--accent)"></span> HTTP/3 (nhttp3)</span>
-    <span><span class="legend-dot" style="background:var(--purple)"></span> HTTP/2</span>
+  <div class="readout-legend">
+    <span><span class="legend-swatch" style="background:var(--lab-teal)"></span> HTTP/3 (nhttp3)</span>
+    <span><span class="legend-swatch" style="background:var(--lab-blue)"></span> HTTP/2</span>
   </div>
 
-  <div class="bench-section">
-    <h3 style="font-size:0.9rem;color:#888;margin-bottom:1rem;">TLS Handshake Latency</h3>
-    <div class="bench-row">
-      <div class="bench-label">HTTP/3 (QUIC + TLS 1.3)</div>
-      <div class="bench-bar-outer"><div class="bench-bar-inner h3" style="width:88%">1-RTT over network</div></div>
-      <div class="bench-value">154 &micro;s</div>
+  <div class="readout-group">
+    <div class="readout-label">TLS Handshake</div>
+    <div class="readout-row">
+      <div class="readout-metric">HTTP/3 QUIC+TLS</div>
+      <div class="readout-bar"><div class="readout-bar-fill teal" style="width:88%">1-RTT</div></div>
+      <div class="readout-value">154 &micro;s</div>
     </div>
-    <div class="bench-row">
-      <div class="bench-label">HTTP/2 (TCP + TLS 1.3)</div>
-      <div class="bench-bar-outer"><div class="bench-bar-inner h2" style="width:95%">2-RTT over network</div></div>
-      <div class="bench-value">166 &micro;s</div>
+    <div class="readout-row">
+      <div class="readout-metric">HTTP/2 TCP+TLS</div>
+      <div class="readout-bar"><div class="readout-bar-fill blue" style="width:95%">2-RTT</div></div>
+      <div class="readout-value">166 &micro;s</div>
+    </div>
+    <div class="readout-note">In-process TLS. Over a real network, HTTP/3 saves a full RTT.</div>
+  </div>
+
+  <div class="readout-group">
+    <div class="readout-label">Codec Throughput</div>
+    <div class="readout-row">
+      <div class="readout-metric">STREAM frame 1200B</div>
+      <div class="readout-bar"><div class="readout-bar-fill teal" style="width:30%">18.7 GB/s</div></div>
+      <div class="readout-value">64 ns</div>
+    </div>
+    <div class="readout-row">
+      <div class="readout-metric">STREAM parse 1200B</div>
+      <div class="readout-bar"><div class="readout-bar-fill teal" style="width:34%">16.4 GB/s</div></div>
+      <div class="readout-value">73 ns</div>
+    </div>
+    <div class="readout-row">
+      <div class="readout-metric">QPACK encode 6h</div>
+      <div class="readout-bar"><div class="readout-bar-fill teal" style="width:60%"></div></div>
+      <div class="readout-value">680 ns</div>
+    </div>
+    <div class="readout-row">
+      <div class="readout-metric">VarInt encode</div>
+      <div class="readout-bar"><div class="readout-bar-fill teal" style="width:8%"></div></div>
+      <div class="readout-value">20 ns</div>
     </div>
   </div>
 
-  <div class="bench-section">
-    <h3 style="font-size:0.9rem;color:#888;margin-bottom:1rem;">Codec Performance</h3>
-    <div class="bench-row">
-      <div class="bench-label">STREAM frame (1200B)</div>
-      <div class="bench-bar-outer"><div class="bench-bar-inner h3" style="width:30%">18.7 GB/s encode</div></div>
-      <div class="bench-value">64 ns</div>
+  <div class="readout-group">
+    <div class="readout-label">Header Compression</div>
+    <div class="readout-row">
+      <div class="readout-metric">Raw (10 headers)</div>
+      <div class="readout-bar"><div class="readout-bar-fill muted" style="width:100%">334 bytes</div></div>
+      <div class="readout-value">334 B</div>
     </div>
-    <div class="bench-row">
-      <div class="bench-label">QPACK encode (6 headers)</div>
-      <div class="bench-bar-outer"><div class="bench-bar-inner h3" style="width:65%">&nbsp;</div></div>
-      <div class="bench-value">680 ns</div>
-    </div>
-    <div class="bench-row">
-      <div class="bench-label">VarInt encode</div>
-      <div class="bench-bar-outer"><div class="bench-bar-inner h3" style="width:8%">&nbsp;</div></div>
-      <div class="bench-value">20 ns</div>
-    </div>
-  </div>
-
-  <div class="bench-section">
-    <h3 style="font-size:0.9rem;color:#888;margin-bottom:1rem;">Header Compression</h3>
-    <div class="bench-row">
-      <div class="bench-label">Raw headers (10 fields)</div>
-      <div class="bench-bar-outer"><div class="bench-bar-inner" style="width:100%;background:#333;color:#888">334 bytes</div></div>
-      <div class="bench-value">334 B</div>
-    </div>
-    <div class="bench-row">
-      <div class="bench-label">QPACK compressed</div>
-      <div class="bench-bar-outer"><div class="bench-bar-inner h3" style="width:50%">50% smaller</div></div>
-      <div class="bench-value">167 B</div>
+    <div class="readout-row">
+      <div class="readout-metric">QPACK compressed</div>
+      <div class="readout-bar"><div class="readout-bar-fill teal" style="width:50%">50% smaller</div></div>
+      <div class="readout-value">167 B</div>
     </div>
   </div>
 </div>
 
-<!-- RFCs -->
+<hr class="divider">
+
+<!-- ── RFCs ── -->
 <div class="section">
-  <h2><span>7</span> RFCs implemented</h2>
-  <table class="rfc-table">
+  <div class="section-label">// compliance</div>
+  <h2><span class="accent">7</span> RFCs implemented</h2>
+  <table>
     <thead><tr><th>RFC</th><th>Title</th><th>Status</th></tr></thead>
     <tbody>
-      <tr><td class="mono">RFC 9000</td><td>QUIC Transport</td><td class="check">Implemented</td></tr>
-      <tr><td class="mono">RFC 9001</td><td>Using TLS to Secure QUIC</td><td class="check">Implemented</td></tr>
-      <tr><td class="mono">RFC 9002</td><td>Loss Detection and Congestion Control</td><td class="check">Implemented</td></tr>
-      <tr><td class="mono">RFC 9114</td><td>HTTP/3</td><td class="check">Implemented</td></tr>
-      <tr><td class="mono">RFC 9204</td><td>QPACK Header Compression</td><td class="check">Implemented</td></tr>
-      <tr><td class="mono">RFC 9218</td><td>Extensible Priorities</td><td class="check">Implemented</td></tr>
-      <tr><td class="mono">RFC 9221</td><td>QUIC Datagrams</td><td class="check">Implemented</td></tr>
+      <tr><td class="rfc-id">9000</td><td>QUIC Transport</td><td class="status-on">ACTIVE</td></tr>
+      <tr><td class="rfc-id">9001</td><td>Using TLS to Secure QUIC</td><td class="status-on">ACTIVE</td></tr>
+      <tr><td class="rfc-id">9002</td><td>Loss Detection + Congestion Control</td><td class="status-on">ACTIVE</td></tr>
+      <tr><td class="rfc-id">9114</td><td>HTTP/3</td><td class="status-on">ACTIVE</td></tr>
+      <tr><td class="rfc-id">9204</td><td>QPACK Header Compression</td><td class="status-on">ACTIVE</td></tr>
+      <tr><td class="rfc-id">9218</td><td>Extensible Priorities</td><td class="status-on">ACTIVE</td></tr>
+      <tr><td class="rfc-id">9221</td><td>QUIC Datagrams</td><td class="status-on">ACTIVE</td></tr>
     </tbody>
   </table>
 </div>
 
-<!-- Security -->
+<hr class="divider">
+
+<!-- ── SECURITY ── -->
 <div class="section">
-  <h2>Security <span>audited</span></h2>
-  <p style="color:var(--text-dim);margin-bottom:1rem;">Reviewed against 200+ issues from aioquic and quiche. Zero unsafe blocks.</p>
-  <div class="security-grid">
-    <div class="sec-item"><strong>ACK Range Limit</strong>Capped at 256 to prevent DoS</div>
-    <div class="sec-item"><strong>Frame Size Limit</strong>16MB max payload per frame</div>
-    <div class="sec-item"><strong>Packet Validation</strong>Initial packets &ge; 1200 bytes</div>
-    <div class="sec-item"><strong>CRYPTO Buffer</strong>128KB cap prevents OOM</div>
-    <div class="sec-item"><strong>Stateless Reset</strong>Constant-time token validation</div>
-    <div class="sec-item"><strong>CID Generation</strong>Entropy-mixed, collision-resistant</div>
-    <div class="sec-item"><strong>Idle Timeout</strong>min(local, remote) per RFC</div>
-    <div class="sec-item"><strong>Mutex Safety</strong>Graceful poisoned-lock handling</div>
+  <div class="section-label">// hardening</div>
+  <h2>Security <span class="accent">audited</span></h2>
+  <p style="color:var(--lab-text-muted);margin-bottom:1rem;">Reviewed against 200+ issues from aioquic + quiche. Zero unsafe blocks.</p>
+  <div class="sec-grid">
+    <div class="sec-cell"><strong>ACK RANGE LIMIT</strong><span>Capped at 256 &mdash; DoS prevention</span></div>
+    <div class="sec-cell"><strong>FRAME SIZE LIMIT</strong><span>16MB max payload per frame</span></div>
+    <div class="sec-cell"><strong>PACKET VALIDATION</strong><span>Initial &ge; 1200 bytes enforced</span></div>
+    <div class="sec-cell"><strong>CRYPTO BUFFER</strong><span>128KB cap prevents OOM</span></div>
+    <div class="sec-cell"><strong>STATELESS RESET</strong><span>Constant-time token validation</span></div>
+    <div class="sec-cell"><strong>CID ENTROPY</strong><span>Mixed entropy, collision-resistant</span></div>
+    <div class="sec-cell"><strong>IDLE TIMEOUT</strong><span>min(local, remote) per RFC</span></div>
+    <div class="sec-cell"><strong>MUTEX SAFETY</strong><span>Graceful poisoned-lock handling</span></div>
   </div>
 </div>
 
-<!-- Architecture -->
+<hr class="divider">
+
+<!-- ── ARCHITECTURE ── -->
 <div class="section">
+  <div class="section-label">// structure</div>
   <h2>Architecture</h2>
-  <div class="arch">
+  <div class="arch-panel">
 <pre>
-                    ┌─────────────────┐
-                    │   Application   │
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │    nhttp3-h3    │  HTTP/3 frames, headers
-                    └────────┬────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-     ┌────────▼───────┐     │     ┌────────▼───────┐
-     │  nhttp3-qpack  │     │     │   Extensions   │
-     │  QPACK codec   │     │     │ Datagram/Prio  │
-     └────────────────┘     │     └────────────────┘
-                             │
-                    ┌────────▼────────┐
-                    │   nhttp3-quic   │  Endpoint, I/O, TLS, streams
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │   nhttp3-core   │  VarInt, CID, errors
-                    └─────────────────┘
+                    +-------------------+
+                    |    Application    |
+                    +--------+----------+
+                             |
+                    +--------v----------+
+                    |     nhttp3-h3     |  HTTP/3 frames, headers
+                    +--------+----------+
+                             |
+              +--------------+--------------+
+              |              |              |
+     +--------v--------+    |    +---------v--------+
+     |   nhttp3-qpack  |    |    |    Extensions    |
+     |   QPACK codec   |    |    |  Datagram / Prio |
+     +-----------------+    |    +------------------+
+                             |
+                    +--------v----------+
+                    |    nhttp3-quic    |  Endpoint, TLS, streams
+                    |                   |  loss, congestion, QLOG
+                    +--------+----------+
+                             |
+                    +--------v----------+
+                    |    nhttp3-core    |  VarInt, CID, errors
+                    +-------------------+
 </pre>
   </div>
 </div>
 
 <div class="footer">
-  <p>MIT License &middot; <a href="https://github.com/ArnBon/nhttp3">GitHub</a></p>
+  MIT License &middot; <a href="https://github.com/ArnBon/nhttp3">GitHub</a>
 </div>
 
 </body>
