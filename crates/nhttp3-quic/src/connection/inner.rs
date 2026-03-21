@@ -99,6 +99,22 @@ impl ConnectionInner {
         }
     }
 
+    /// Returns the effective idle timeout — min(local, remote) per RFC 9000 §10.1.
+    pub fn effective_idle_timeout(&self) -> std::time::Duration {
+        let local = self.config.max_idle_timeout;
+        if let Some(ref remote) = self.remote_params {
+            if remote.max_idle_timeout.is_zero() {
+                return local; // Remote has no preference
+            }
+            if local.is_zero() {
+                return remote.max_idle_timeout;
+            }
+            std::cmp::min(local, remote.max_idle_timeout)
+        } else {
+            local
+        }
+    }
+
     pub fn on_handshake_data(&mut self, data: &[u8]) -> Result<(), crate::packet::PacketError> {
         self.tls.read_handshake(data)?;
         self.drive_handshake();

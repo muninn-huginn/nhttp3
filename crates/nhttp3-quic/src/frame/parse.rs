@@ -19,6 +19,16 @@ impl Frame {
                 let ack_range_count = VarInt::decode(buf)?;
                 let first_ack_range = VarInt::decode(buf)?;
 
+                // Security: cap ACK ranges to prevent DoS (aioquic #549)
+                const MAX_ACK_RANGES: u64 = 256;
+                if ack_range_count.value() > MAX_ACK_RANGES {
+                    return Err(PacketError::Invalid(format!(
+                        "ACK range count {} exceeds limit {}",
+                        ack_range_count.value(),
+                        MAX_ACK_RANGES
+                    )));
+                }
+
                 let mut ack_ranges = Vec::new();
                 for _ in 0..ack_range_count.value() {
                     let gap = VarInt::decode(buf)?;

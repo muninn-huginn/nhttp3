@@ -58,6 +58,11 @@ async fn handle_packet(
         return;
     }
 
+    // Security: validate Initial packet minimum size (RFC 9000 §14.1)
+    if !crate::packet::validate_initial_packet_size(data) {
+        return; // Drop undersized Initial packets
+    }
+
     let first_byte = data[0];
     let is_long = Header::is_long_header(first_byte);
 
