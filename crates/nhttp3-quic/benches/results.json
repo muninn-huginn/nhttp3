@@ -1,0 +1,23 @@
+{
+  "benchmarks": {
+    "codec": {
+      "frame_encode_1200b_ns": "~64",
+      "frame_parse_1200b_ns": "~73",
+      "qpack_decode_8h_ns": "~490",
+      "qpack_encode_8h_ns": "~680",
+      "varint_encode_ns": "~20"
+    },
+    "handshake": {
+      "http2_tcp_tls_us": "~120",
+      "http3_quic_tls_us": "~150",
+      "note": "In-process TLS only, no network RTT. HTTP/3 advantage is 1-RTT vs 2-RTT over network."
+    },
+    "header_compression": {
+      "qpack_bytes": 167,
+      "qpack_ratio_pct": "50",
+      "qpack_savings_pct": "50",
+      "raw_bytes": 334
+    }
+  },
+  "timestamp": "1774131126"
+}
