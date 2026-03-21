@@ -1,8 +1,10 @@
 pub mod config;
 pub mod connection;
 pub mod crypto;
+pub mod endpoint;
 pub mod extensions;
 pub mod frame;
+pub mod io_loop;
 pub mod packet;
 pub mod recovery;
 pub mod stream;

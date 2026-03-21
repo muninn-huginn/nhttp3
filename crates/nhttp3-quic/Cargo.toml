@@ -14,4 +14,14 @@ tokio = { workspace = true }
 rustls = { workspace = true }
 
 [dev-dependencies]
-rcgen = "0.13"
+rcgen = { workspace = true }
+criterion = { workspace = true }
+nhttp3-qpack = { path = "../nhttp3-qpack" }
+
+[[bench]]
+name = "codec"
+harness = false
+
+[[bench]]
+name = "connection"
+harness = false
