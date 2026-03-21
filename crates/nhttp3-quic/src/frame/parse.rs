@@ -4,6 +4,19 @@ use nhttp3_core::{ConnectionId, Error as CoreError, VarInt};
 use super::*;
 use crate::packet::PacketError;
 
+/// Maximum allowed frame payload size (16 MB) to prevent DoS.
+const MAX_FRAME_PAYLOAD: usize = 16 * 1024 * 1024;
+
+fn check_length(len: usize) -> Result<(), PacketError> {
+    if len > MAX_FRAME_PAYLOAD {
+        return Err(PacketError::Invalid(format!(
+            "frame payload {} exceeds max {}",
+            len, MAX_FRAME_PAYLOAD
+        )));
+    }
+    Ok(())
+}
+
 impl Frame {
     /// Parses a single frame from the buffer.
     pub fn parse(buf: &mut Bytes) -> Result<Self, PacketError> {
@@ -66,11 +79,11 @@ impl Frame {
             0x06 => {
                 let offset = VarInt::decode(buf)?;
                 let len = VarInt::decode(buf)?.value() as usize;
+                check_length(len)?;
                 if buf.remaining() < len {
                     return Err(PacketError::Core(CoreError::BufferTooShort));
                 }
-                let data = buf.chunk()[..len].to_vec();
-                buf.advance(len);
+                let data = buf.copy_to_bytes(len).to_vec();
                 Ok(Frame::Crypto { offset, data })
             }
             0x07 => {

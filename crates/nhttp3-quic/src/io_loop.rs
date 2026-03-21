@@ -88,11 +88,17 @@ async fn handle_packet(
         }
     };
 
-    let conn = connections.lock().unwrap().get(&dcid);
+    let conn = match connections.lock() {
+        Ok(map) => map.get(&dcid),
+        Err(_) => return, // Poisoned mutex — skip packet
+    };
 
     if let Some(conn) = conn {
         let transmits = {
-            let mut inner = conn.lock().unwrap();
+            let mut inner = match conn.lock() {
+                Ok(i) => i,
+                Err(_) => return, // Poisoned — skip
+            };
             let _ = inner.on_handshake_data(data);
             inner.dirty = true;
             inner.poll_transmit()
@@ -135,10 +141,9 @@ async fn handle_packet(
             let inner = Arc::new(Mutex::new(conn_inner));
             let notify = Arc::new(tokio::sync::Notify::new());
 
-            connections
-                .lock()
-                .unwrap()
-                .insert(&local_cid, inner.clone());
+            if let Ok(mut map) = connections.lock() {
+                map.insert(&local_cid, inner.clone());
+            }
 
             for t in transmits {
                 let _ = socket.send_to(&t.data, t.addr).await;

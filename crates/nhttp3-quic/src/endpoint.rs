@@ -150,9 +150,26 @@ impl Endpoint {
 }
 
 fn rand_cid() -> [u8; 8] {
+    // Use multiple entropy sources to avoid predictable/colliding CIDs
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap();
+        .unwrap_or_default();
     let nanos = now.as_nanos() as u64;
-    nanos.to_le_bytes()
+    let ptr_entropy = &now as *const _ as u64;
+    let thread_id = std::thread::current().id();
+    let tid_hash = format!("{:?}", thread_id).len() as u64;
+
+    // Mix entropy sources
+    let mixed = nanos
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(ptr_entropy)
+        .wrapping_mul(1442695040888963407)
+        .wrapping_add(tid_hash);
+
+    // Add a monotonic counter to prevent same-nanosecond collisions
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let count = COUNTER.fetch_add(1, Ordering::Relaxed);
+
+    (mixed.wrapping_add(count)).to_le_bytes()
 }
