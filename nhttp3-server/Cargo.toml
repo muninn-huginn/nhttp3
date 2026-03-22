@@ -21,6 +21,10 @@ path = "src/ollama_proxy.rs"
 name = "nhttp3-sglang"
 path = "src/sglang_proxy.rs"
 
+[[bin]]
+name = "nhttp3-inference"
+path = "src/inference.rs"
+
 [dependencies]
 # QUIC transport (proven, battle-tested)
 quinn = { workspace = true }
