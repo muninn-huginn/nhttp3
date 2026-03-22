@@ -80,8 +80,29 @@ impl ConnectionInner {
         let result = self.tls.write_handshake();
 
         if !result.data.is_empty() {
+            // Wrap TLS handshake data in proper QUIC packets with CRYPTO frames
+            let packet = match self.state {
+                ConnectionState::Initial => {
+                    crate::packet::builder::build_initial_packet(
+                        &self.remote_cid,
+                        &self.local_cid,
+                        &[],
+                        &result.data,
+                        0, // PN 0 for first packet
+                    )
+                }
+                _ => {
+                    crate::packet::builder::build_handshake_packet(
+                        &self.remote_cid,
+                        &self.local_cid,
+                        &result.data,
+                        0,
+                    )
+                }
+            };
+
             self.outgoing.push(Transmit {
-                data: result.data,
+                data: packet,
                 addr: self.remote_addr,
             });
         }
@@ -115,8 +136,16 @@ impl ConnectionInner {
         }
     }
 
+    /// Processes an incoming packet. Extracts CRYPTO data from properly
+    /// framed QUIC packets, or falls back to treating raw data as TLS records.
     pub fn on_handshake_data(&mut self, data: &[u8]) -> Result<(), crate::packet::PacketError> {
-        self.tls.read_handshake(data)?;
+        // Try to extract CRYPTO data from a proper QUIC packet
+        if let Some(crypto_data) = crate::packet::builder::extract_crypto_data(data) {
+            self.tls.read_handshake(&crypto_data)?;
+        } else {
+            // Fallback: treat as raw TLS data (for in-process testing)
+            self.tls.read_handshake(data)?;
+        }
         self.drive_handshake();
         Ok(())
     }
