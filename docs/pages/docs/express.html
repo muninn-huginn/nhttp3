@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Express / Node.js — nhttp3 Docs</title><link rel="stylesheet" href="style.css"></head><body>
+<nav class="sidebar"><a href="../index.html" class="sidebar-logo">nhttp3</a><div class="sidebar-section">Getting Started</div><a href="getting-started.html">Installation</a><a href="quickstart.html">Quick Start</a><a href="concepts.html">Core Concepts</a><div class="sidebar-section">Server Guides</div><a href="fastapi.html">FastAPI</a><a href="sglang.html">SGLang / LLM</a><a href="ollama.html">Ollama</a><a href="express.html" class="active">Express / Node.js</a><div class="sidebar-section">Client Guides</div><a href="curl.html">curl</a><a href="browser.html">Browser</a><a href="python-client.html">Python Client</a><div class="sidebar-section">Reference</div><a href="api.html">API Reference</a><a href="rfcs.html">RFC Coverage</a><a href="benchmarks.html">Benchmarks</a><a href="security.html">Security</a><a href="architecture.html">Architecture</a></nav>
+<main class="content">
+<div class="breadcrumb"><a href="../index.html">nhttp3</a> / docs / express</div>
+
+<h1><span>Express</span> / Node.js</h1>
+<p>Use nhttp3's WASM bindings for QPACK header compression and HTTP/3 frame encoding in Node.js.</p>
+
+<h2>Install</h2>
+<pre><code>cd nhttp3-wasm && wasm-pack build --target nodejs
+npm link ./pkg</code></pre>
+
+<h2>QPACK Compression</h2>
+<pre><code><span class="kw">const</span> nhttp3 = <span class="fn">require</span>(<span class="str">'nhttp3'</span>);
+
+<span class="kw">const</span> headers = [
+  [<span class="str">':method'</span>, <span class="str">'GET'</span>],
+  [<span class="str">':path'</span>, <span class="str">'/api/users'</span>],
+  [<span class="str">'accept'</span>, <span class="str">'application/json'</span>],
+];
+
+<span class="kw">const</span> encoded = nhttp3.<span class="fn">encode_headers</span>(headers);
+<span class="kw">const</span> decoded = nhttp3.<span class="fn">decode_headers</span>(encoded);
+console.<span class="fn">log</span>(<span class="str">`Compressed: ${encoded.length} bytes (was ${rawSize})`</span>);</code></pre>
+
+<h2>Frame Encoding</h2>
+<pre><code><span class="kw">const</span> body = <span class="kw">new</span> TextEncoder().<span class="fn">encode</span>(<span class="str">'{"ok":true}'</span>);
+<span class="kw">const</span> dataFrame = nhttp3.<span class="fn">encode_data_frame</span>(body);
+<span class="kw">const</span> settingsFrame = nhttp3.<span class="fn">encode_settings_frame</span>();</code></pre>
+
+<h2>Source</h2>
+<p><a href="https://github.com/ArnBon/nhttp3/blob/main/examples/express/server.js">examples/express/server.js</a> — Full Node.js example with Express-like router.</p>
+
+</main></body></html>

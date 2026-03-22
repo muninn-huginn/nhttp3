@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Architecture — nhttp3 Docs</title><link rel="stylesheet" href="style.css"></head><body>
+<nav class="sidebar"><a href="../index.html" class="sidebar-logo">nhttp3</a><div class="sidebar-section">Getting Started</div><a href="getting-started.html">Installation</a><a href="quickstart.html">Quick Start</a><a href="concepts.html">Core Concepts</a><div class="sidebar-section">Server Guides</div><a href="fastapi.html">FastAPI</a><a href="sglang.html">SGLang / LLM</a><a href="ollama.html">Ollama</a><a href="express.html">Express / Node.js</a><div class="sidebar-section">Client Guides</div><a href="curl.html">curl</a><a href="browser.html">Browser</a><a href="python-client.html">Python Client</a><div class="sidebar-section">Reference</div><a href="api.html">API Reference</a><a href="rfcs.html">RFC Coverage</a><a href="benchmarks.html">Benchmarks</a><a href="security.html">Security</a><a href="architecture.html" class="active">Architecture</a></nav>
+<main class="content">
+<div class="breadcrumb"><a href="../index.html">nhttp3</a> / docs / architecture</div>
+
+<h1><span>Architecture</span></h1>
+<pre><code>                    +-------------------+
+                    |    Application    |
+                    +--------+----------+
+                             |
+                    +--------v----------+
+                    |     nhttp3-h3     |  HTTP/3 frames, headers
+                    +--------+----------+
+                             |
+              +--------------+--------------+
+              |              |              |
+     +--------v--------+    |    +---------v--------+
+     |   nhttp3-qpack  |    |    |    Extensions    |
+     |   QPACK codec   |    |    |  Datagram / Prio |
+     +-----------------+    |    +------------------+
+                             |
+                    +--------v----------+
+                    |    nhttp3-quic    |  Endpoint, TLS, streams
+                    |                   |  loss, congestion, QLOG
+                    +--------+----------+
+                             |
+                    +--------v----------+
+                    |    nhttp3-core    |  VarInt, CID, errors
+                    +-------------------+</code></pre>
+
+<h2>Crate <span>Responsibilities</span></h2>
+<table><thead><tr><th>Crate</th><th>Tests</th><th>Responsibility</th></tr></thead><tbody>
+<tr><td><code>nhttp3-core</code></td><td>19</td><td>VarInt, ConnectionId, shared error types</td></tr>
+<tr><td><code>nhttp3-quic</code></td><td>134</td><td>Full QUIC transport: packets, frames, TLS, streams, flow control, recovery, endpoint I/O</td></tr>
+<tr><td><code>nhttp3-qpack</code></td><td>25</td><td>QPACK header compression: static/dynamic tables, encoder, decoder</td></tr>
+<tr><td><code>nhttp3-h3</code></td><td>13</td><td>HTTP/3 framing, headers, error codes</td></tr>
+<tr><td><code>nhttp3</code></td><td>—</td><td>Umbrella re-export</td></tr>
+<tr><td><code>nhttp3-ffi</code></td><td>5</td><td>C ABI: opaque handles, callbacks, runtime</td></tr>
+<tr><td><code>nhttp3-python</code></td><td>—</td><td>PyO3 bindings, ASGI server, async bridge</td></tr>
+<tr><td><code>nhttp3-wasm</code></td><td>3</td><td>WASM bindings: QPACK, frames, config</td></tr>
+</tbody></table>
+
+<h2>Congestion <span>Controllers</span></h2>
+<table><thead><tr><th>Algorithm</th><th>Best For</th></tr></thead><tbody>
+<tr><td><strong>NewReno</strong> (default)</td><td>General purpose, RFC 9002 compliant</td></tr>
+<tr><td><strong>CUBIC</strong></td><td>High-bandwidth, high-latency networks</td></tr>
+<tr><td><strong>BBR</strong></td><td>Bandwidth estimation, loss-tolerant, model-based</td></tr>
+</tbody></table>
+
+</main></body></html>

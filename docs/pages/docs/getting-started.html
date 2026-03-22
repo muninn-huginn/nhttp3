@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Getting Started — nhttp3 Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="sidebar">
+  <a href="../index.html" class="sidebar-logo">nhttp3</a>
+  <div class="sidebar-section">Getting Started</div>
+  <a href="getting-started.html" class="active">Installation</a>
+  <a href="quickstart.html">Quick Start</a>
+  <a href="concepts.html">Core Concepts</a>
+  <div class="sidebar-section">Server Guides</div>
+  <a href="fastapi.html">FastAPI</a>
+  <a href="sglang.html">SGLang / LLM</a>
+  <a href="ollama.html">Ollama</a>
+  <a href="express.html">Express / Node.js</a>
+  <div class="sidebar-section">Client Guides</div>
+  <a href="curl.html">curl</a>
+  <a href="browser.html">Browser</a>
+  <a href="python-client.html">Python Client</a>
+  <div class="sidebar-section">Reference</div>
+  <a href="api.html">API Reference</a>
+  <a href="rfcs.html">RFC Coverage</a>
+  <a href="benchmarks.html">Benchmarks</a>
+  <a href="security.html">Security</a>
+  <a href="architecture.html">Architecture</a>
+</nav>
+
+<main class="content">
+  <div class="breadcrumb"><a href="../index.html">nhttp3</a> / docs / getting-started</div>
+  <h1><span>Getting</span> Started</h1>
+  <p>Install nhttp3 and run your first HTTP/3 server in under 2 minutes.</p>
+
+  <h2>Installation</h2>
+
+  <h3>Python</h3>
+  <pre><code>pip install nhttp3</code></pre>
+  <p>Requires Python 3.9+. The package includes the compiled Rust extension — no Rust toolchain needed.</p>
+
+  <h3>Rust</h3>
+  <pre><code>cargo add nhttp3</code></pre>
+  <p>Requires Rust 1.75+. Individual crates are also available:</p>
+  <pre><code><span class="cm"># Just the QUIC transport</span>
+cargo add nhttp3-quic
+
+<span class="cm"># Just QPACK header compression</span>
+cargo add nhttp3-qpack
+
+<span class="cm"># Just HTTP/3 framing</span>
+cargo add nhttp3-h3</code></pre>
+
+  <h3>Node.js / WASM</h3>
+  <pre><code>npm install nhttp3</code></pre>
+  <p>Or build from source:</p>
+  <pre><code>cd nhttp3-wasm
+wasm-pack build --target nodejs
+npm link ./pkg</code></pre>
+
+  <h2>Generate TLS Certificates</h2>
+  <p>HTTP/3 requires TLS. For local development, generate a self-signed certificate:</p>
+  <pre><code>openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
+  -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost'</code></pre>
+
+  <div class="callout tip">
+    <div class="callout-title">Tip</div>
+    For production, use certificates from Let's Encrypt or your CA. Self-signed certs require <code>-k</code> with curl and accepting the cert in browsers.
+  </div>
+
+  <h2>Verify Installation</h2>
+
+  <h3>Python</h3>
+  <pre><code><span class="kw">import</span> nhttp3
+<span class="fn">print</span>(nhttp3.__version__)  <span class="cm"># 0.1.0</span>
+
+config = nhttp3.<span class="fn">Config</span>()
+<span class="fn">print</span>(config)  <span class="cm"># Config(max_idle_timeout=30.0, ...)</span></code></pre>
+
+  <h3>Node.js</h3>
+  <pre><code><span class="kw">const</span> nhttp3 = <span class="fn">require</span>(<span class="str">'nhttp3'</span>);
+console.<span class="fn">log</span>(nhttp3.<span class="fn">version</span>());  <span class="cm">// 0.1.0</span></code></pre>
+
+  <h2>Next Steps</h2>
+  <ul>
+    <li><a href="quickstart.html">Quick Start</a> — Run your first HTTP/3 server</li>
+    <li><a href="fastapi.html">FastAPI Guide</a> — Migrate from uvicorn in 1 line</li>
+    <li><a href="concepts.html">Core Concepts</a> — Understand QUIC and HTTP/3</li>
+  </ul>
+</main>
+
+</body>
+</html>

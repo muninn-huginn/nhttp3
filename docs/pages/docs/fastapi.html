@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FastAPI — nhttp3 Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="sidebar">
+  <a href="../index.html" class="sidebar-logo">nhttp3</a>
+  <div class="sidebar-section">Getting Started</div>
+  <a href="getting-started.html">Installation</a>
+  <a href="quickstart.html">Quick Start</a>
+  <a href="concepts.html">Core Concepts</a>
+  <div class="sidebar-section">Server Guides</div>
+  <a href="fastapi.html" class="active">FastAPI</a>
+  <a href="sglang.html">SGLang / LLM</a>
+  <a href="ollama.html">Ollama</a>
+  <a href="express.html">Express / Node.js</a>
+  <div class="sidebar-section">Client Guides</div>
+  <a href="curl.html">curl</a>
+  <a href="browser.html">Browser</a>
+  <a href="python-client.html">Python Client</a>
+  <div class="sidebar-section">Reference</div>
+  <a href="api.html">API Reference</a>
+  <a href="rfcs.html">RFC Coverage</a>
+  <a href="benchmarks.html">Benchmarks</a>
+  <a href="security.html">Security</a>
+  <a href="architecture.html">Architecture</a>
+</nav>
+
+<main class="content">
+  <div class="breadcrumb"><a href="../index.html">nhttp3</a> / docs / <a href="fastapi.html">fastapi</a></div>
+  <h1><span>FastAPI</span> Integration</h1>
+  <p>Serve any FastAPI application over HTTP/3 with a single line change. nhttp3 is a drop-in replacement for uvicorn that speaks QUIC.</p>
+
+  <h2>Migration <span>from uvicorn</span></h2>
+
+  <h3>Before (HTTP/1.1 + HTTP/2)</h3>
+  <pre><code><span class="kw">import</span> uvicorn
+uvicorn.<span class="fn">run</span>(app, host=<span class="str">"0.0.0.0"</span>, port=<span class="num">8000</span>)</code></pre>
+
+  <h3>After (HTTP/3)</h3>
+  <pre><code><span class="kw">import</span> nhttp3
+nhttp3.<span class="fn">serve</span>(app, host=<span class="str">"0.0.0.0"</span>, port=<span class="num">4433</span>,
+             certfile=<span class="str">"cert.pem"</span>, keyfile=<span class="str">"key.pem"</span>)</code></pre>
+
+  <div class="callout tip">
+    <div class="callout-title">Why port 4433?</div>
+    HTTP/3 uses UDP, not TCP. The standard HTTPS port 443 is typically used by TCP-based servers. 4433 is a common convention for HTTP/3 development. In production, you can use port 443 for both TCP (HTTP/2) and UDP (HTTP/3) simultaneously.
+  </div>
+
+  <h2>Full <span>Example</span></h2>
+  <pre><code><span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI, Request
+<span class="kw">from</span> fastapi.responses <span class="kw">import</span> JSONResponse, StreamingResponse
+<span class="kw">import</span> nhttp3, asyncio
+
+app = FastAPI(title=<span class="str">"My API over HTTP/3"</span>)
+
+<span class="kw">@</span>app.<span class="fn">get</span>(<span class="str">"/"</span>)
+<span class="kw">async def</span> <span class="fn">root</span>():
+    <span class="kw">return</span> {<span class="str">"message"</span>: <span class="str">"Hello from HTTP/3!"</span>}
+
+<span class="kw">@</span>app.<span class="fn">post</span>(<span class="str">"/echo"</span>)
+<span class="kw">async def</span> <span class="fn">echo</span>(request: Request):
+    body = <span class="kw">await</span> request.<span class="fn">body</span>()
+    <span class="kw">return</span> {<span class="str">"echo"</span>: body.decode(), <span class="str">"protocol"</span>: <span class="str">"h3"</span>}
+
+<span class="kw">@</span>app.<span class="fn">get</span>(<span class="str">"/stream"</span>)
+<span class="kw">async def</span> <span class="fn">stream</span>():
+    <span class="cm">"""HTTP/3 advantage: each SSE chunk is on its own stream."""</span>
+    <span class="kw">async def</span> <span class="fn">generate</span>():
+        <span class="kw">for</span> i <span class="kw">in</span> range(<span class="num">10</span>):
+            <span class="kw">yield</span> f<span class="str">"data: chunk {i}\n\n"</span>
+            <span class="kw">await</span> asyncio.<span class="fn">sleep</span>(<span class="num">0.1</span>)
+    <span class="kw">return</span> StreamingResponse(<span class="fn">generate</span>(), media_type=<span class="str">"text/event-stream"</span>)
+
+nhttp3.<span class="fn">serve</span>(app, port=<span class="num">4433</span>, certfile=<span class="str">"cert.pem"</span>, keyfile=<span class="str">"key.pem"</span>)</code></pre>
+
+  <h2>Testing Your <span>Server</span></h2>
+
+  <pre><code><span class="cm"># GET</span>
+curl --http3 https://localhost:4433/ -k
+
+<span class="cm"># POST with body</span>
+curl --http3 https://localhost:4433/echo -X POST -d <span class="str">"hello"</span> -k
+
+<span class="cm"># Streaming response</span>
+curl --http3 https://localhost:4433/stream -k --no-buffer
+
+<span class="cm"># With timing info</span>
+curl --http3 https://localhost:4433/ -k \
+  -w <span class="str">"\nConnect: %{time_connect}s\nTLS: %{time_appconnect}s\nTotal: %{time_total}s\n"</span></code></pre>
+
+  <h2>Why HTTP/3 for <span>APIs</span>?</h2>
+
+  <table>
+    <thead><tr><th>Feature</th><th>HTTP/2 (uvicorn)</th><th>HTTP/3 (nhttp3)</th></tr></thead>
+    <tbody>
+      <tr><td>Connection setup</td><td>TCP + TLS = 2 RTT</td><td><strong>QUIC + TLS = 1 RTT</strong></td></tr>
+      <tr><td>Head-of-line blocking</td><td>Yes (shared TCP)</td><td><strong>None (per-stream)</strong></td></tr>
+      <tr><td>Network change</td><td>Connection drops</td><td><strong>Connection migrates</strong></td></tr>
+      <tr><td>Header compression</td><td>HPACK</td><td><strong>QPACK (50% savings)</strong></td></tr>
+      <tr><td>Multiplexing</td><td>Over one TCP conn</td><td><strong>Independent QUIC streams</strong></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <div class="callout-title">When HTTP/3 matters most</div>
+    <ul>
+      <li><strong>High-latency clients</strong> — Mobile, edge, cross-continental. 1-RTT saves real milliseconds.</li>
+      <li><strong>Streaming responses</strong> — SSE, WebSocket-like patterns. No HOL blocking.</li>
+      <li><strong>Parallel API calls</strong> — Frontend making 10+ concurrent requests. Each independent.</li>
+      <li><strong>Unreliable networks</strong> — Single packet loss doesn't stall all requests.</li>
+    </ul>
+  </div>
+
+  <h2>Configuration <span>Options</span></h2>
+
+  <pre><code>nhttp3.<span class="fn">serve</span>(
+    app,
+    host=<span class="str">"0.0.0.0"</span>,           <span class="cm"># Bind address</span>
+    port=<span class="num">4433</span>,                <span class="cm"># UDP port</span>
+    certfile=<span class="str">"cert.pem"</span>,      <span class="cm"># TLS certificate</span>
+    keyfile=<span class="str">"key.pem"</span>,        <span class="cm"># TLS private key</span>
+)</code></pre>
+
+  <p>Advanced configuration via <code>nhttp3.Config()</code>:</p>
+
+  <pre><code>config = nhttp3.<span class="fn">Config</span>()
+config.max_idle_timeout = <span class="num">60.0</span>          <span class="cm"># seconds</span>
+config.initial_max_streams_bidi = <span class="num">200</span>  <span class="cm"># concurrent request streams</span>
+config.initial_max_data = <span class="num">50_000_000</span>   <span class="cm"># 50MB connection flow control</span>
+config.enable_0rtt = <span class="kw">True</span>              <span class="cm"># 0-RTT resumption</span></code></pre>
+
+  <h2>Source Code</h2>
+  <p><a href="https://github.com/ArnBon/nhttp3/blob/main/examples/fastapi/server.py">examples/fastapi/server.py</a> — Complete example with streaming, echo, and large responses.</p>
+</main>
+
+</body>
+</html>

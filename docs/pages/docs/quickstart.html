@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quick Start — nhttp3 Docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="sidebar">
+  <a href="../index.html" class="sidebar-logo">nhttp3</a>
+  <div class="sidebar-section">Getting Started</div>
+  <a href="getting-started.html">Installation</a>
+  <a href="quickstart.html" class="active">Quick Start</a>
+  <a href="concepts.html">Core Concepts</a>
+  <div class="sidebar-section">Server Guides</div>
+  <a href="fastapi.html">FastAPI</a>
+  <a href="sglang.html">SGLang / LLM</a>
+  <a href="ollama.html">Ollama</a>
+  <a href="express.html">Express / Node.js</a>
+  <div class="sidebar-section">Client Guides</div>
+  <a href="curl.html">curl</a>
+  <a href="browser.html">Browser</a>
+  <a href="python-client.html">Python Client</a>
+  <div class="sidebar-section">Reference</div>
+  <a href="api.html">API Reference</a>
+  <a href="rfcs.html">RFC Coverage</a>
+  <a href="benchmarks.html">Benchmarks</a>
+  <a href="security.html">Security</a>
+  <a href="architecture.html">Architecture</a>
+</nav>
+
+<main class="content">
+  <div class="breadcrumb"><a href="../index.html">nhttp3</a> / docs / quick-start</div>
+  <h1><span>Quick</span> Start</h1>
+  <p>Three ways to run an HTTP/3 server — pick the one that fits your stack.</p>
+
+  <h2>Option 1: <span>Python</span> — Serve a FastAPI app</h2>
+
+  <pre><code><span class="cm"># app.py</span>
+<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI
+<span class="kw">import</span> nhttp3
+
+app = FastAPI()
+
+<span class="kw">@</span>app.<span class="fn">get</span>(<span class="str">"/"</span>)
+<span class="kw">async def</span> <span class="fn">root</span>():
+    <span class="kw">return</span> {<span class="str">"message"</span>: <span class="str">"Hello from HTTP/3!"</span>}
+
+<span class="kw">@</span>app.<span class="fn">get</span>(<span class="str">"/health"</span>)
+<span class="kw">async def</span> <span class="fn">health</span>():
+    <span class="kw">return</span> {<span class="str">"status"</span>: <span class="str">"ok"</span>, <span class="str">"protocol"</span>: <span class="str">"h3"</span>}
+
+<span class="cm"># One line — replaces uvicorn.run(app)</span>
+nhttp3.<span class="fn">serve</span>(app, port=<span class="num">4433</span>, certfile=<span class="str">"cert.pem"</span>, keyfile=<span class="str">"key.pem"</span>)</code></pre>
+
+  <pre><code><span class="cm"># Run it</span>
+python app.py</code></pre>
+
+  <pre><code><span class="cm"># Test it</span>
+curl --http3 https://localhost:4433/ -k
+curl --http3 https://localhost:4433/health -k</code></pre>
+
+  <h2>Option 2: <span>CLI</span> — Serve any ASGI app</h2>
+
+  <pre><code><span class="cm"># Serve an existing app without modifying code</span>
+nhttp3 run myapp:app --port 4433 --certfile cert.pem --keyfile key.pem
+
+<span class="cm"># Equivalent to:</span>
+<span class="cm"># uvicorn myapp:app --port 8000</span></code></pre>
+
+  <h2>Option 3: <span>Rust</span> — Low-level QUIC</h2>
+
+  <pre><code><span class="kw">use</span> nhttp3::quic::endpoint::Endpoint;
+<span class="kw">use</span> nhttp3::quic::config::Config;
+
+<span class="kw">let</span> config = Config::<span class="fn">default</span>();
+<span class="kw">let</span> endpoint = Endpoint::<span class="fn">bind</span>(
+    <span class="str">"0.0.0.0:4433"</span>.<span class="fn">parse</span>()?,
+    config,
+    Some(server_tls),
+    None,
+).<span class="kw">await</span>?;
+
+<span class="cm">// Accept connections</span>
+<span class="kw">let</span> conn = endpoint.<span class="fn">accept</span>().<span class="kw">await</span>.unwrap();
+conn.<span class="fn">established</span>().<span class="kw">await</span>;
+
+<span class="cm">// Open a stream</span>
+<span class="kw">let</span> (send, recv) = conn.<span class="fn">open_bidi_stream</span>().unwrap();
+send.<span class="fn">write_all</span>(b<span class="str">"hello"</span>).<span class="kw">await</span>?;</code></pre>
+
+  <h2>What Just <span>Happened</span>?</h2>
+
+  <table>
+    <thead><tr><th>Step</th><th>What nhttp3 did</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Bound a UDP socket on port 4433</td></tr>
+      <tr><td>2</td><td>Started listening for QUIC Initial packets</td></tr>
+      <tr><td>3</td><td>Client sent a QUIC Initial with TLS ClientHello inside a CRYPTO frame</td></tr>
+      <tr><td>4</td><td>Server completed TLS 1.3 handshake in 1-RTT (vs 2-RTT for TCP+TLS)</td></tr>
+      <tr><td>5</td><td>Client opened a bidirectional QUIC stream</td></tr>
+      <tr><td>6</td><td>HTTP/3 request/response flowed over that stream with QPACK-compressed headers</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <div class="callout-title">Key Difference from HTTP/2</div>
+    Each request uses its own QUIC stream. If one response is slow, it doesn't block others. This is the "no head-of-line blocking" advantage that HTTP/3 provides over HTTP/2's shared TCP connection.
+  </div>
+
+  <h2>Next Steps</h2>
+  <ul>
+    <li><a href="fastapi.html">FastAPI Guide</a> — Full migration guide with streaming, middleware</li>
+    <li><a href="sglang.html">SGLang / LLM Guide</a> — Stream LLM tokens over HTTP/3</li>
+    <li><a href="curl.html">curl Guide</a> — Test your server from the command line</li>
+    <li><a href="browser.html">Browser Guide</a> — Fetch API, WebTransport, streaming</li>
+    <li><a href="concepts.html">Core Concepts</a> — Understand QUIC, streams, and flow control</li>
+  </ul>
+</main>
+
+</body>
+</html>

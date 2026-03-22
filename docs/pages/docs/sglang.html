@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>SGLang / LLM Serving — nhttp3 Docs</title><link rel="stylesheet" href="style.css"></head><body>
+<nav class="sidebar"><a href="../index.html" class="sidebar-logo">nhttp3</a><div class="sidebar-section">Getting Started</div><a href="getting-started.html">Installation</a><a href="quickstart.html">Quick Start</a><a href="concepts.html">Core Concepts</a><div class="sidebar-section">Server Guides</div><a href="fastapi.html">FastAPI</a><a href="sglang.html" class="active">SGLang / LLM</a><a href="ollama.html">Ollama</a><a href="express.html">Express / Node.js</a><div class="sidebar-section">Client Guides</div><a href="curl.html">curl</a><a href="browser.html">Browser</a><a href="python-client.html">Python Client</a><div class="sidebar-section">Reference</div><a href="api.html">API Reference</a><a href="rfcs.html">RFC Coverage</a><a href="benchmarks.html">Benchmarks</a><a href="security.html">Security</a><a href="architecture.html">Architecture</a></nav>
+<main class="content">
+<div class="breadcrumb"><a href="../index.html">nhttp3</a> / docs / sglang</div>
+
+<h1><span>SGLang</span> / LLM Serving</h1>
+<p>Stream LLM inference tokens over HTTP/3. No head-of-line blocking means faster token delivery to clients.</p>
+
+<h2>Why HTTP/3 for <span>LLM Serving</span></h2>
+<table><thead><tr><th>Problem</th><th>HTTP/2</th><th>HTTP/3 (nhttp3)</th></tr></thead><tbody>
+<tr><td>Token streaming</td><td>SSE over shared TCP — one slow stream blocks all</td><td><strong>Each stream independent — no HOL blocking</strong></td></tr>
+<tr><td>Multiple clients</td><td>TCP connection per client</td><td><strong>Multiplexed QUIC streams</strong></td></tr>
+<tr><td>Mobile inference</td><td>Connection drops on network change</td><td><strong>Connection migrates seamlessly</strong></td></tr>
+<tr><td>High latency</td><td>TCP + TLS = 2 RTT</td><td><strong>QUIC = 1 RTT</strong></td></tr>
+</tbody></table>
+
+<h2>OpenAI-Compatible <span>Server</span></h2>
+<pre><code><span class="kw">import</span> nhttp3, json, asyncio
+
+<span class="kw">class</span> <span class="fn">LLMServer</span>:
+    <span class="kw">async def</span> <span class="fn">__call__</span>(self, scope, receive, send):
+        <span class="kw">if</span> scope[<span class="str">"path"</span>] == <span class="str">"/v1/chat/completions"</span>:
+            body = <span class="kw">await</span> self.<span class="fn">read_body</span>(receive)
+            request = json.<span class="fn">loads</span>(body)
+
+            <span class="kw">if</span> request.get(<span class="str">"stream"</span>):
+                <span class="kw">await</span> self.<span class="fn">stream_tokens</span>(send, request)
+            <span class="kw">else</span>:
+                <span class="kw">await</span> self.<span class="fn">complete</span>(send, request)
+
+    <span class="kw">async def</span> <span class="fn">stream_tokens</span>(self, send, request):
+        <span class="kw">await</span> send({<span class="str">"type"</span>: <span class="str">"http.response.start"</span>,
+                    <span class="str">"status"</span>: <span class="num">200</span>,
+                    <span class="str">"headers"</span>: [[b<span class="str">"content-type"</span>, b<span class="str">"text/event-stream"</span>]]})
+
+        <span class="kw">for</span> token <span class="kw">in</span> self.<span class="fn">generate</span>(request):
+            chunk = {<span class="str">"choices"</span>: [{<span class="str">"delta"</span>: {<span class="str">"content"</span>: token}}]}
+            data = f<span class="str">"data: {json.dumps(chunk)}\n\n"</span>
+            <span class="kw">await</span> send({<span class="str">"type"</span>: <span class="str">"http.response.body"</span>,
+                        <span class="str">"body"</span>: data.encode(), <span class="str">"more_body"</span>: <span class="kw">True</span>})
+            <span class="kw">await</span> asyncio.<span class="fn">sleep</span>(<span class="num">0.02</span>)
+
+nhttp3.<span class="fn">serve</span>(LLMServer(), port=<span class="num">4433</span>,
+             certfile=<span class="str">"cert.pem"</span>, keyfile=<span class="str">"key.pem"</span>)</code></pre>
+
+<h2>Test with <span>curl</span></h2>
+<pre><code>curl --http3 https://localhost:4433/v1/chat/completions \
+  -X POST -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"model":"llama3","messages":[{"role":"user","content":"Hello"}],"stream":true}'</span> \
+  -k --no-buffer</code></pre>
+
+<h2>Source</h2>
+<p><a href="https://github.com/ArnBon/nhttp3/blob/main/examples/sglang/server.py">examples/sglang/server.py</a> — Full ASGI server with OpenAI-compatible streaming.</p>
+
+</main></body></html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>API Reference — nhttp3 Docs</title><link rel="stylesheet" href="style.css"></head><body>
+<nav class="sidebar"><a href="../index.html" class="sidebar-logo">nhttp3</a><div class="sidebar-section">Getting Started</div><a href="getting-started.html">Installation</a><a href="quickstart.html">Quick Start</a><a href="concepts.html">Core Concepts</a><div class="sidebar-section">Server Guides</div><a href="fastapi.html">FastAPI</a><a href="sglang.html">SGLang / LLM</a><a href="ollama.html">Ollama</a><a href="express.html">Express / Node.js</a><div class="sidebar-section">Client Guides</div><a href="curl.html">curl</a><a href="browser.html">Browser</a><a href="python-client.html">Python Client</a><div class="sidebar-section">Reference</div><a href="api.html" class="active">API Reference</a><a href="rfcs.html">RFC Coverage</a><a href="benchmarks.html">Benchmarks</a><a href="security.html">Security</a><a href="architecture.html">Architecture</a></nav>
+<main class="content">
+<div class="breadcrumb"><a href="../index.html">nhttp3</a> / docs / api</div>
+
+<h1><span>API</span> Reference</h1>
+
+<h2>Python <span>API</span></h2>
+
+<h3>nhttp3.serve(app, **kwargs)</h3>
+<p>Serve an ASGI application over HTTP/3.</p>
+<pre><code>nhttp3.<span class="fn">serve</span>(app, host=<span class="str">"0.0.0.0"</span>, port=<span class="num">4433</span>, certfile=<span class="str">"cert.pem"</span>, keyfile=<span class="str">"key.pem"</span>)</code></pre>
+
+<h3>nhttp3.Config</h3>
+<table><thead><tr><th>Property</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>max_idle_timeout</code></td><td>float</td><td>30.0</td><td>Seconds before idle connection closes</td></tr>
+<tr><td><code>initial_max_data</code></td><td>int</td><td>10M</td><td>Connection-level flow control window</td></tr>
+<tr><td><code>initial_max_stream_data_bidi_local</code></td><td>int</td><td>1M</td><td>Per-stream flow control (local bidi)</td></tr>
+<tr><td><code>initial_max_streams_bidi</code></td><td>int</td><td>100</td><td>Max concurrent bidirectional streams</td></tr>
+<tr><td><code>initial_max_streams_uni</code></td><td>int</td><td>100</td><td>Max concurrent unidirectional streams</td></tr>
+<tr><td><code>enable_0rtt</code></td><td>bool</td><td>False</td><td>Enable 0-RTT early data</td></tr>
+</tbody></table>
+
+<h3>nhttp3.Endpoint</h3>
+<pre><code>ep = <span class="kw">await</span> nhttp3.Endpoint.<span class="fn">bind</span>(host, port, config)
+conn = <span class="kw">await</span> ep.<span class="fn">accept</span>()      <span class="cm"># server</span>
+conn = <span class="kw">await</span> ep.<span class="fn">connect</span>(h, p) <span class="cm"># client</span></code></pre>
+
+<h3>nhttp3.Connection</h3>
+<pre><code>send, recv = <span class="kw">await</span> conn.<span class="fn">open_bidi_stream</span>()
+send = <span class="kw">await</span> conn.<span class="fn">open_uni_stream</span>()
+conn.<span class="fn">close</span>(error_code=<span class="num">0</span>)</code></pre>
+
+<h3>nhttp3.SendStream / RecvStream</h3>
+<pre><code>n = <span class="kw">await</span> send.<span class="fn">write</span>(data)
+<span class="kw">await</span> send.<span class="fn">finish</span>()
+data = <span class="kw">await</span> recv.<span class="fn">read</span>(max_bytes=<span class="num">65536</span>)</code></pre>
+
+<h2>Node.js / WASM <span>API</span></h2>
+<pre><code>nhttp3.<span class="fn">version</span>()                         <span class="cm">// "0.1.0"</span>
+nhttp3.<span class="fn">encode_headers</span>(pairs)              <span class="cm">// Uint8Array (QPACK)</span>
+nhttp3.<span class="fn">decode_headers</span>(block)              <span class="cm">// Array&lt;[string,string]&gt;</span>
+nhttp3.<span class="fn">encode_data_frame</span>(data)            <span class="cm">// Uint8Array</span>
+nhttp3.<span class="fn">encode_headers_frame</span>(qpackBlock)  <span class="cm">// Uint8Array</span>
+nhttp3.<span class="fn">encode_settings_frame</span>()            <span class="cm">// Uint8Array</span></code></pre>
+
+<h2>Rust <span>API</span></h2>
+<p>See <a href="https://docs.rs/nhttp3">docs.rs/nhttp3</a> for full Rust API documentation (generated from source).</p>
+
+</main></body></html>

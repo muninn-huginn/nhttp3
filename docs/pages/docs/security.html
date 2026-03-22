@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Security — nhttp3 Docs</title><link rel="stylesheet" href="style.css"></head><body>
+<nav class="sidebar"><a href="../index.html" class="sidebar-logo">nhttp3</a><div class="sidebar-section">Getting Started</div><a href="getting-started.html">Installation</a><a href="quickstart.html">Quick Start</a><a href="concepts.html">Core Concepts</a><div class="sidebar-section">Server Guides</div><a href="fastapi.html">FastAPI</a><a href="sglang.html">SGLang / LLM</a><a href="ollama.html">Ollama</a><a href="express.html">Express / Node.js</a><div class="sidebar-section">Client Guides</div><a href="curl.html">curl</a><a href="browser.html">Browser</a><a href="python-client.html">Python Client</a><div class="sidebar-section">Reference</div><a href="api.html">API Reference</a><a href="rfcs.html">RFC Coverage</a><a href="benchmarks.html">Benchmarks</a><a href="security.html" class="active">Security</a><a href="architecture.html">Architecture</a></nav>
+<main class="content">
+<div class="breadcrumb"><a href="../index.html">nhttp3</a> / docs / security</div>
+
+<h1><span>Security</span></h1>
+<p>Audited against 200+ issues from <a href="https://github.com/aiortc/aioquic/issues">aioquic</a> and <a href="https://github.com/cloudflare/quiche/issues">quiche</a>. Zero <code>unsafe</code> blocks.</p>
+
+<h2>Mitigations <span>Applied</span></h2>
+<table><thead><tr><th>Attack</th><th>Mitigation</th><th>Source</th></tr></thead><tbody>
+<tr><td>ACK range DoS</td><td>Max 256 ACK ranges per frame</td><td>aioquic #549</td></tr>
+<tr><td>CRYPTO buffer OOM</td><td>128KB cap per connection</td><td>aioquic #501</td></tr>
+<tr><td>Undersized Initial</td><td>Reject packets &lt; 1200 bytes</td><td>RFC 9000 §14.1</td></tr>
+<tr><td>Oversized frames</td><td>16MB payload cap</td><td>Internal audit</td></tr>
+<tr><td>Predictable CIDs</td><td>Mixed entropy + atomic counter</td><td>Internal audit</td></tr>
+<tr><td>Mutex poisoning</td><td>Graceful lock().ok() in I/O loop</td><td>Internal audit</td></tr>
+<tr><td>Stateless reset oracle</td><td>Constant-time token comparison</td><td>aioquic #555</td></tr>
+<tr><td>Idle timeout mismatch</td><td>min(local, remote) per RFC</td><td>aioquic #466</td></tr>
+</tbody></table>
+
+<h2>Design <span>Principles</span></h2>
+<ul>
+<li><strong>Zero unsafe</strong> — No unsafe blocks in protocol code. Only in FFI boundary (nhttp3-ffi).</li>
+<li><strong>Bounds-checked parsing</strong> — All packet/frame parsers check remaining() before reading.</li>
+<li><strong>No hand-rolled crypto</strong> — TLS delegated entirely to rustls. No custom crypto implementations.</li>
+<li><strong>Input validation at boundaries</strong> — Public APIs validate. Internal code trusts invariants.</li>
+</ul>
+
+</main></body></html>
