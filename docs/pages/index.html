@@ -276,6 +276,73 @@
 
 <hr class="divider">
 
+<!-- ── INTEGRATIONS ── -->
+<div class="section">
+  <div class="section-label">// integrations</div>
+  <h2>Drop-in for <span class="accent">any framework</span></h2>
+  <div class="panel-grid">
+    <div class="panel">
+      <div class="panel-name">FastAPI</div>
+      <h3>1 line change</h3>
+      <p><code style="color:var(--lab-teal)">nhttp3.serve(app, port=4433)</code><br>Replaces uvicorn.run(). Full ASGI support. Streaming SSE, WebSockets coming.</p>
+    </div>
+    <div class="panel">
+      <div class="panel-name">SGLang</div>
+      <h3>LLM Serving</h3>
+      <p>OpenAI-compatible /v1/chat/completions with token streaming. No HOL blocking = faster token delivery to clients.</p>
+    </div>
+    <div class="panel">
+      <div class="panel-name">Ollama</div>
+      <h3>HTTP/3 Proxy</h3>
+      <p>Front Ollama's REST API with HTTP/3. Streaming /api/generate and /api/chat. Edge inference friendly.</p>
+    </div>
+    <div class="panel">
+      <div class="panel-name">Express / Node.js</div>
+      <h3>QPACK + Frames</h3>
+      <p>WASM bindings for header compression (50% savings) and HTTP/3 frame encoding. Router with frame output.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ── CLIENTS ── -->
+<div class="section">
+  <div class="section-label">// clients</div>
+  <h2>Client <span class="accent">access</span></h2>
+  <div class="panel-grid">
+    <div class="panel">
+      <div class="panel-name">curl</div>
+      <h3>curl --http3</h3>
+      <p style="font-size:0.85rem;color:var(--lab-text-muted);">
+        <code style="color:var(--lab-teal)">curl --http3 https://localhost:4433/ -k</code><br><br>
+        Parallel multiplexing:<br>
+        <code style="color:var(--lab-teal)">curl --http3 --parallel url1 url2 url3 -k</code><br><br>
+        Requires curl 7.88+ with HTTP/3 support.
+      </p>
+    </div>
+    <div class="panel">
+      <div class="panel-name">Browser</div>
+      <h3>Fetch API + WebTransport</h3>
+      <p style="font-size:0.85rem;color:var(--lab-text-muted);">
+        Browsers auto-negotiate HTTP/3 via Alt-Svc header. Standard fetch() works — Chrome/Firefox/Safari all support h3.<br><br>
+        WebTransport API for bidirectional streams and datagrams (Chrome 97+).
+      </p>
+    </div>
+    <div class="panel">
+      <div class="panel-name">Python</div>
+      <h3>nhttp3 client</h3>
+      <p style="font-size:0.85rem;color:var(--lab-text-muted);">
+        <code style="color:var(--lab-teal)">conn = await ep.connect("host", 443)</code><br>
+        <code style="color:var(--lab-teal)">send, recv = await conn.open_bidi_stream()</code><br><br>
+        Async/await native. Multiplexed streams without HOL blocking.
+      </p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
 <!-- ── ARCHITECTURE ── -->
 <div class="section">
   <div class="section-label">// structure</div>

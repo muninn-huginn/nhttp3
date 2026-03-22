@@ -62,6 +62,96 @@ const config = new Config();
 const frame = encode_data_frame(new Uint8Array([104, 101, 108, 108, 111]));
 ```
 
+## Framework Integration
+
+### FastAPI — 1 line change
+
+```python
+# Before:
+uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# After:
+nhttp3.serve(app, host="0.0.0.0", port=4433,
+             certfile="cert.pem", keyfile="key.pem")
+```
+
+### SGLang / Ollama — LLM Serving
+
+```python
+# SGLang: HTTP/3 streaming for LLM inference
+app = SGLangH3App(model_path="meta-llama/Llama-3-8B")
+nhttp3.serve(app, port=4433, certfile="cert.pem", keyfile="key.pem")
+
+# Ollama: HTTP/3 proxy
+proxy = OllamaH3Proxy(ollama_url="http://localhost:11434")
+nhttp3.serve(proxy, port=4433, certfile="cert.pem", keyfile="key.pem")
+```
+
+### CLI
+
+```bash
+# Serve any ASGI app
+nhttp3 run myapp:app --port 4433 --certfile cert.pem --keyfile key.pem
+```
+
+## Clients
+
+### curl
+
+```bash
+curl --http3 https://localhost:4433/ -k
+curl --http3 https://localhost:4433/health -k -v
+
+# Parallel multiplexing (no HOL blocking)
+curl --http3 --parallel url1 url2 url3 -k
+
+# Stream LLM tokens
+curl --http3 https://localhost:4433/v1/chat/completions \
+  -X POST -H "Content-Type: application/json" \
+  -d '{"model":"llama3","messages":[{"role":"user","content":"Hello!"}],"stream":true}' \
+  -k --no-buffer
+```
+
+### Browser
+
+Browsers automatically negotiate HTTP/3 via the `Alt-Svc` header. Standard `fetch()` works:
+
+```javascript
+// Fetch API — browser auto-upgrades to HTTP/3
+const resp = await fetch('https://localhost:4433/api/data');
+const data = await resp.json();
+
+// WebTransport — bidirectional streams (Chrome 97+)
+const wt = new WebTransport('https://localhost:4433');
+await wt.ready;
+const writer = wt.datagrams.writable.getWriter();
+await writer.write(new TextEncoder().encode('hello'));
+
+// Streaming LLM responses
+const resp = await fetch('/v1/chat/completions', {
+  method: 'POST',
+  body: JSON.stringify({model: 'llama3', messages: [...], stream: true}),
+});
+for await (const chunk of resp.body) {
+  // tokens arrive without head-of-line blocking
+}
+```
+
+### Python Client
+
+```python
+import nhttp3, asyncio
+
+async def main():
+    ep = await nhttp3.Endpoint.bind("0.0.0.0", 0)
+    conn = await ep.connect("example.com", 443)
+    send, recv = await conn.open_bidi_stream()
+    await send.write(b"hello")
+    data = await recv.read(1024)
+
+asyncio.run(main())
+```
+
 ## RFC Coverage
 
 | RFC | Title | Status |
