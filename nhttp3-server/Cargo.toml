@@ -13,6 +13,14 @@ path = "src/main.rs"
 name = "nhttp3-client"
 path = "src/client.rs"
 
+[[bin]]
+name = "nhttp3-ollama"
+path = "src/ollama_proxy.rs"
+
+[[bin]]
+name = "nhttp3-sglang"
+path = "src/sglang_proxy.rs"
+
 [dependencies]
 # QUIC transport (proven, battle-tested)
 quinn = { workspace = true }
@@ -30,3 +38,8 @@ rustls = { workspace = true }
 rcgen = { workspace = true }
 http = { workspace = true }
 bytes = { workspace = true }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+futures-util = "0.3"
+clap = { version = "4", features = ["derive"] }
