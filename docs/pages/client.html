@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>nhttp3 Browser Client</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0A0A; --surface: #141414; --border: #2A2A2A;
+    --text: #E0E0E0; --dim: #888; --teal: #2DD4BF; --blue: #4A9EFF;
+    --font: 'VT323', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); padding: 2rem; letter-spacing: 0.05em; }
+  h1 { font-size: 1.5rem; margin-bottom: 1rem; }
+  h1 span { color: var(--teal); }
+  .panel { border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 1rem; }
+  .panel h2 { font-size: 1rem; color: var(--blue); margin-bottom: 0.75rem; }
+  label { display: block; color: var(--dim); font-size: 0.85rem; margin-bottom: 0.25rem; }
+  input, textarea, select { font-family: var(--font); font-size: 1rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 0.5rem; width: 100%; margin-bottom: 0.75rem; letter-spacing: 0.05em; }
+  input:focus, textarea:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 8px rgba(74,158,255,0.3); }
+  button { font-family: var(--font); font-size: 1rem; background: var(--teal); color: var(--bg); border: 1px solid var(--teal); padding: 0.5rem 1.5rem; cursor: pointer; text-transform: uppercase; letter-spacing: 0.1em; }
+  button:hover { filter: brightness(1.2); box-shadow: 0 0 8px rgba(45,212,191,0.3); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .output { border: 1px solid var(--border); background: var(--surface); padding: 1rem; font-size: 0.9rem; white-space: pre-wrap; min-height: 100px; max-height: 400px; overflow-y: auto; }
+  .status { font-size: 0.85rem; margin-bottom: 0.5rem; }
+  .status .dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; }
+  .status .dot.green { background: var(--teal); box-shadow: 0 0 6px rgba(45,212,191,0.4); }
+  .status .dot.red { background: #EF4444; box-shadow: 0 0 6px rgba(239,68,68,0.4); }
+  .status .dot.yellow { background: #F59E0B; }
+  .tabs { display: flex; gap: 0; margin-bottom: 1rem; }
+  .tab { padding: 0.5rem 1rem; border: 1px solid var(--border); cursor: pointer; color: var(--dim); }
+  .tab.active { background: var(--surface); color: var(--text); border-bottom-color: var(--surface); }
+  .note { font-size: 0.8rem; color: var(--dim); margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+
+<h1><span>nhttp3</span> browser client</h1>
+
+<div class="panel">
+  <h2>// connection</h2>
+  <div class="status" id="status"><span class="dot yellow"></span> Disconnected</div>
+
+  <label>Server URL</label>
+  <input type="text" id="url" value="https://localhost:4433" placeholder="https://host:port">
+
+  <div style="display:flex;gap:0.5rem;">
+    <button id="connectBtn" onclick="connectH3()">Connect</button>
+    <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('fetch')">Fetch API</div>
+  <div class="tab" onclick="switchTab('webtransport')">WebTransport</div>
+  <div class="tab" onclick="switchTab('stream')">Streaming</div>
+</div>
+
+<!-- Fetch Tab -->
+<div id="tab-fetch" class="panel">
+  <h2>// fetch over HTTP/3</h2>
+  <p class="note">Browsers automatically use HTTP/3 when the server supports it via Alt-Svc.</p>
+
+  <label>Method</label>
+  <select id="method">
+    <option>GET</option>
+    <option>POST</option>
+    <option>PUT</option>
+    <option>DELETE</option>
+  </select>
+
+  <label>Path</label>
+  <input type="text" id="path" value="/" placeholder="/api/endpoint">
+
+  <label>Body (POST/PUT)</label>
+  <textarea id="body" rows="3" placeholder='{"key": "value"}'></textarea>
+
+  <button onclick="doFetch()">Send Request</button>
+
+  <div class="output" id="fetchOutput">// response will appear here</div>
+</div>
+
+<!-- WebTransport Tab -->
+<div id="tab-webtransport" class="panel" style="display:none;">
+  <h2>// WebTransport (HTTP/3 native)</h2>
+  <p class="note">WebTransport provides bidirectional streams and datagrams over HTTP/3. Supported in Chrome 97+.</p>
+
+  <button onclick="openWebTransport()">Open WebTransport Session</button>
+  <button onclick="sendDatagram()">Send Datagram</button>
+
+  <label style="margin-top:1rem;">Message</label>
+  <input type="text" id="wtMessage" value="hello from browser" placeholder="message to send">
+
+  <div class="output" id="wtOutput">// WebTransport events will appear here</div>
+</div>
+
+<!-- Streaming Tab -->
+<div id="tab-stream" class="panel" style="display:none;">
+  <h2>// streaming responses</h2>
+  <p class="note">HTTP/3 streams tokens without head-of-line blocking — perfect for LLM output.</p>
+
+  <label>Prompt</label>
+  <input type="text" id="prompt" value="Tell me about HTTP/3" placeholder="your prompt">
+
+  <button onclick="streamChat()">Stream Chat</button>
+
+  <div class="output" id="streamOutput">// streaming tokens will appear here</div>
+</div>
+
+<script>
+let connection = null;
+let wtSession = null;
+
+function log(elementId, msg) {
+  const el = document.getElementById(elementId);
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+function setStatus(text, color) {
+  document.getElementById('status').innerHTML =
+    `<span class="dot ${color}"></span> ${text}`;
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('[id^="tab-"]').forEach(p => p.style.display = 'none');
+  event.target.classList.add('active');
+  document.getElementById(`tab-${name}`).style.display = 'block';
+}
+
+// ─── Fetch API (HTTP/3 automatic) ───
+
+async function connectH3() {
+  const url = document.getElementById('url').value;
+  setStatus(`Connecting to ${url}...`, 'yellow');
+
+  try {
+    // Browsers automatically negotiate HTTP/3 via Alt-Svc header
+    // A simple fetch to the server will upgrade if HTTP/3 is available
+    const resp = await fetch(`${url}/health`, { mode: 'cors' });
+    const data = await resp.json();
+
+    // Check if HTTP/3 was used (Chrome DevTools Network tab shows h3)
+    setStatus(`Connected to ${url} (check DevTools for h3)`, 'green');
+    document.getElementById('connectBtn').disabled = true;
+    document.getElementById('disconnectBtn').disabled = false;
+    connection = url;
+
+    log('fetchOutput', `Connected: ${JSON.stringify(data)}`);
+    log('fetchOutput', `Protocol: ${resp.headers.get('x-protocol') || 'check DevTools'}`);
+  } catch (e) {
+    setStatus(`Failed: ${e.message}`, 'red');
+    log('fetchOutput', `Error: ${e.message}`);
+    log('fetchOutput', '');
+    log('fetchOutput', 'If using self-signed cert, visit the URL directly first to accept it.');
+  }
+}
+
+function disconnect() {
+  connection = null;
+  if (wtSession) {
+    wtSession.close();
+    wtSession = null;
+  }
+  setStatus('Disconnected', 'yellow');
+  document.getElementById('connectBtn').disabled = false;
+  document.getElementById('disconnectBtn').disabled = true;
+}
+
+async function doFetch() {
+  if (!connection) { log('fetchOutput', 'Not connected'); return; }
+
+  const method = document.getElementById('method').value;
+  const path = document.getElementById('path').value;
+  const body = document.getElementById('body').value;
+  const url = `${connection}${path}`;
+
+  log('fetchOutput', `\n>>> ${method} ${path}`);
+
+  try {
+    const opts = { method, mode: 'cors' };
+    if ((method === 'POST' || method === 'PUT') && body) {
+      opts.body = body;
+      opts.headers = { 'Content-Type': 'application/json' };
+    }
+
+    const start = performance.now();
+    const resp = await fetch(url, opts);
+    const elapsed = (performance.now() - start).toFixed(1);
+
+    const text = await resp.text();
+    log('fetchOutput', `<<< ${resp.status} (${elapsed}ms)`);
+
+    try {
+      const json = JSON.parse(text);
+      log('fetchOutput', JSON.stringify(json, null, 2));
+    } catch {
+      log('fetchOutput', text);
+    }
+  } catch (e) {
+    log('fetchOutput', `Error: ${e.message}`);
+  }
+}
+
+// ─── WebTransport ───
+
+async function openWebTransport() {
+  if (!connection) { log('wtOutput', 'Connect first'); return; }
+
+  const url = connection.replace('https://', 'https://');
+  log('wtOutput', `Opening WebTransport to ${url}...`);
+
+  try {
+    // WebTransport API — Chrome 97+, Firefox 114+
+    wtSession = new WebTransport(url);
+    await wtSession.ready;
+
+    log('wtOutput', 'WebTransport session ready!');
+    setStatus('WebTransport connected', 'green');
+
+    // Read incoming datagrams
+    const reader = wtSession.datagrams.readable.getReader();
+    (async () => {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        log('wtOutput', `<<< datagram: ${new TextDecoder().decode(value)}`);
+      }
+    })();
+
+    // Listen for incoming bidirectional streams
+    const streamReader = wtSession.incomingBidirectionalStreams.getReader();
+    (async () => {
+      while (true) {
+        const { value: stream, done } = await streamReader.read();
+        if (done) break;
+        log('wtOutput', `<<< incoming bidi stream`);
+        const sr = stream.readable.getReader();
+        while (true) {
+          const { value, done } = await sr.read();
+          if (done) break;
+          log('wtOutput', `<<< stream data: ${new TextDecoder().decode(value)}`);
+        }
+      }
+    })();
+
+    wtSession.closed.then(() => {
+      log('wtOutput', 'WebTransport session closed');
+      setStatus('Disconnected', 'yellow');
+    });
+
+  } catch (e) {
+    log('wtOutput', `WebTransport error: ${e.message}`);
+    log('wtOutput', 'WebTransport requires HTTP/3 with proper SETTINGS.');
+  }
+}
+
+async function sendDatagram() {
+  if (!wtSession) { log('wtOutput', 'Open session first'); return; }
+
+  const msg = document.getElementById('wtMessage').value;
+  const writer = wtSession.datagrams.writable.getWriter();
+  await writer.write(new TextEncoder().encode(msg));
+  writer.releaseLock();
+  log('wtOutput', `>>> datagram: ${msg}`);
+}
+
+// ─── Streaming (SSE / fetch streaming) ───
+
+async function streamChat() {
+  if (!connection) { log('streamOutput', 'Connect first'); return; }
+
+  const prompt = document.getElementById('prompt').value;
+  const url = `${connection}/v1/chat/completions`;
+
+  log('streamOutput', `\n>>> Streaming: "${prompt}"`);
+
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama3',
+        messages: [{ role: 'user', content: prompt }],
+        stream: true,
+      }),
+      mode: 'cors',
+    });
+
+    // Read streaming response
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            log('streamOutput', '\n[DONE]');
+            continue;
+          }
+          try {
+            const chunk = JSON.parse(data);
+            const content = chunk.choices?.[0]?.delta?.content || '';
+            if (content) {
+              const el = document.getElementById('streamOutput');
+              el.textContent += content;
+              el.scrollTop = el.scrollHeight;
+            }
+          } catch {}
+        }
+      }
+    }
+    log('streamOutput', '');
+  } catch (e) {
+    log('streamOutput', `Error: ${e.message}`);
+  }
+}
+</script>
+
+</body>
+</html>
