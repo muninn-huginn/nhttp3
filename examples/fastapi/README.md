@@ -1,48 +1,41 @@
 # FastAPI + nhttp3
 
-Serve any FastAPI app over HTTP/3 with one line change.
+Expose FastAPI over HTTP/3 using nhttp3 as a reverse proxy.
+
+## How it works
+
+```
+Browser/curl ──HTTP/3──▶ nhttp3-server ──HTTP/1.1──▶ uvicorn (FastAPI)
+  (QUIC, 1-RTT)           (port 4433)                 (port 8000)
+```
+
+nhttp3-server handles the HTTP/3 frontend. uvicorn handles the app logic.
+This gives external clients the benefits of QUIC (1-RTT, no HOL blocking)
+while keeping your FastAPI code completely unchanged.
+
+## When this helps
+
+- Clients on **high-latency networks** (mobile, cross-continent): saves 2.5 RTTs per connection
+- Clients on **lossy networks**: no head-of-line blocking
+- Clients that **change networks** (WiFi → cellular): connection migration
+
+## When this doesn't help
+
+- Localhost-to-localhost: TCP is faster (no TLS overhead to amortize)
+- Run `nhttp3-benchmark` to see the numbers
 
 ## Setup
 
 ```bash
-pip install nhttp3 fastapi
+# Terminal 1: Start FastAPI
+pip install fastapi uvicorn
+uvicorn app:app --port 8000
 
-# Generate self-signed cert for testing
-openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
-  -keyout key.pem -out cert.pem -days 365 -nodes -subj '/CN=localhost'
+# Terminal 2: Start HTTP/3 proxy
+cargo run -p nhttp3-server -- --proxy http://localhost:8000
+
+# Terminal 3: Test
+cargo run -p nhttp3-server --bin nhttp3-client -- https://localhost:4433/
+cargo run -p nhttp3-server --bin nhttp3-client -- https://localhost:4433/health
+cargo run -p nhttp3-server --bin nhttp3-client -- -X POST -d '{"msg":"hi"}' https://localhost:4433/echo
 ```
-
-## Run
-
-```bash
-python server.py
-```
-
-## Test with curl
-
-```bash
-curl --http3 https://localhost:4433/ -k
-curl --http3 https://localhost:4433/health -k
-curl --http3 https://localhost:4433/echo -X POST -d "hello" -k
-curl --http3 https://localhost:4433/stream -k
-```
-
-## Migration from uvicorn
-
-```python
-# Before (HTTP/1.1 + HTTP/2):
-import uvicorn
-uvicorn.run(app, host="0.0.0.0", port=8000)
-
-# After (HTTP/3):
-import nhttp3
-nhttp3.serve(app, host="0.0.0.0", port=4433,
-             certfile="cert.pem", keyfile="key.pem")
-```
-
-## Why HTTP/3 for APIs?
-
-- **1-RTT handshake** — Faster connection setup than TCP+TLS (2-RTT)
-- **No head-of-line blocking** — Multiplexed streams are independent
-- **Connection migration** — Mobile clients survive network changes
-- **Better on lossy networks** — Single packet loss doesn't stall everything
