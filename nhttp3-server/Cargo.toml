@@ -1,0 +1,28 @@
+[package]
+name = "nhttp3-server"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Working HTTP/3 server — quinn transport + nhttp3 protocol layers"
+
+[[bin]]
+name = "nhttp3-server"
+path = "src/main.rs"
+
+[dependencies]
+# QUIC transport (proven, battle-tested)
+quinn = { workspace = true }
+h3 = { workspace = true }
+h3-quinn = { workspace = true }
+
+# Our protocol layers
+nhttp3-qpack = { path = "../crates/nhttp3-qpack" }
+nhttp3-h3 = { path = "../crates/nhttp3-h3" }
+nhttp3-core = { path = "../crates/nhttp3-core" }
+
+# Standard deps
+tokio = { workspace = true }
+rustls = { workspace = true }
+rcgen = { workspace = true }
+http = { workspace = true }
+bytes = { workspace = true }
