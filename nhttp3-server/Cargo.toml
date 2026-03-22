@@ -25,6 +25,10 @@ path = "src/sglang_proxy.rs"
 name = "nhttp3-inference"
 path = "src/inference.rs"
 
+[[bin]]
+name = "nhttp3-benchmark"
+path = "src/benchmark.rs"
+
 [dependencies]
 # QUIC transport (proven, battle-tested)
 quinn = { workspace = true }
