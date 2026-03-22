@@ -86,6 +86,29 @@ async fn serve_one(endpoint: &quinn::Endpoint) {
                     headers.len(), raw, encoded.len(), decoded.len() == headers.len()
                 ))
             }
+            "/echo" => {
+                // Read body
+                let mut body_data = Vec::new();
+                while let Some(chunk) = stream.recv_data().await.unwrap() {
+                    use bytes::Buf;
+                    let mut c = chunk;
+                    while c.has_remaining() { let b = c.chunk(); body_data.extend_from_slice(b); let l = b.len(); c.advance(l); }
+                }
+                let echo = String::from_utf8_lossy(&body_data);
+                (http::StatusCode::OK, format!(r#"{{"echo":"{}","size":{}}}"#, echo, body_data.len()))
+            }
+            "/stream" => {
+                let resp = http::Response::builder()
+                    .status(http::StatusCode::OK)
+                    .header("content-type", "text/event-stream")
+                    .body(()).unwrap();
+                stream.send_response(resp).await.unwrap();
+                for i in 0..5 {
+                    stream.send_data(Bytes::from(format!("data: chunk {i}\n\n"))).await.unwrap();
+                }
+                stream.finish().await.unwrap();
+                continue; // skip the generic response below
+            }
             _ => (http::StatusCode::NOT_FOUND, r#"{"error":"not found"}"#.to_string()),
         };
 
@@ -151,6 +174,9 @@ async fn real_http3_get() {
     assert!(body_str.contains("Hello from nhttp3!"));
     assert!(body_str.contains("h3"));
 
+    // Close client cleanly so server's accept loop exits
+    drop(send_request);
+    client.close(0u32.into(), b"done");
     client.wait_idle().await;
     server_handle.abort();
 }
@@ -196,6 +222,113 @@ async fn real_http3_qpack_roundtrip() {
     assert!(body_str.contains("\"roundtrip\":true"));
     assert!(body_str.contains("\"qpack\":"));
 
+    drop(send_request);
+    client.close(0u32.into(), b"done");
+    client.wait_idle().await;
+    server_handle.abort();
+}
+
+// Helper to read h3 response body
+async fn read_body(stream: &mut h3::client::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>) -> String {
+    let mut body = Vec::new();
+    while let Some(chunk) = stream.recv_data().await.unwrap() {
+        use bytes::Buf;
+        let mut c = chunk;
+        while c.has_remaining() {
+            let b = c.chunk();
+            body.extend_from_slice(b);
+            let l = b.len();
+            c.advance(l);
+        }
+    }
+    String::from_utf8(body).unwrap()
+}
+
+#[tokio::test]
+async fn real_http3_post_echo() {
+    let (server, addr) = setup();
+    let server_handle = tokio::spawn(async move { serve_one(&server).await });
+
+    let client = client_endpoint();
+    let conn = client.connect(addr, "localhost").unwrap().await.unwrap();
+    let (mut driver, mut send_request) =
+        h3::client::new(h3_quinn::Connection::new(conn)).await.unwrap();
+    tokio::spawn(async move { let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await; });
+
+    let req = http::Request::builder()
+        .method("POST")
+        .uri(format!("https://localhost:{}/echo", addr.port()))
+        .body(()).unwrap();
+    let mut stream = send_request.send_request(req).await.unwrap();
+    stream.send_data(Bytes::from(r#"{"test":true}"#)).await.unwrap();
+    stream.finish().await.unwrap();
+
+    let resp = stream.recv_response().await.unwrap();
+    assert_eq!(resp.status(), 200);
+    let body_str = read_body(&mut stream).await;
+    eprintln!("Echo: {body_str}");
+    assert!(body_str.contains(r#"{"test":true}"#));
+
+    drop(send_request);
+    client.close(0u32.into(), b"done");
+    client.wait_idle().await;
+    server_handle.abort();
+}
+
+#[tokio::test]
+async fn real_http3_streaming() {
+    let (server, addr) = setup();
+    let server_handle = tokio::spawn(async move { serve_one(&server).await });
+
+    let client = client_endpoint();
+    let conn = client.connect(addr, "localhost").unwrap().await.unwrap();
+    let (mut driver, mut send_request) =
+        h3::client::new(h3_quinn::Connection::new(conn)).await.unwrap();
+    tokio::spawn(async move { let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await; });
+
+    let req = http::Request::builder()
+        .uri(format!("https://localhost:{}/stream", addr.port()))
+        .body(()).unwrap();
+    let mut stream = send_request.send_request(req).await.unwrap();
+    stream.finish().await.unwrap();
+
+    let resp = stream.recv_response().await.unwrap();
+    assert_eq!(resp.status(), 200);
+    assert_eq!(resp.headers().get("content-type").unwrap(), "text/event-stream");
+
+    let body_str = read_body(&mut stream).await;
+    eprintln!("Stream chunks: {body_str}");
+    assert!(body_str.contains("data: chunk 0"));
+    assert!(body_str.contains("data: chunk 4"));
+
+    drop(send_request);
+    client.close(0u32.into(), b"done");
+    client.wait_idle().await;
+    server_handle.abort();
+}
+
+#[tokio::test]
+async fn real_http3_404() {
+    let (server, addr) = setup();
+    let server_handle = tokio::spawn(async move { serve_one(&server).await });
+
+    let client = client_endpoint();
+    let conn = client.connect(addr, "localhost").unwrap().await.unwrap();
+    let (mut driver, mut send_request) =
+        h3::client::new(h3_quinn::Connection::new(conn)).await.unwrap();
+    tokio::spawn(async move { let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await; });
+
+    let req = http::Request::builder()
+        .uri(format!("https://localhost:{}/nonexistent", addr.port()))
+        .body(()).unwrap();
+    let mut stream = send_request.send_request(req).await.unwrap();
+    stream.finish().await.unwrap();
+
+    let resp = stream.recv_response().await.unwrap();
+    assert_eq!(resp.status(), 404);
+
+    drop(send_request);
+    client.close(0u32.into(), b"done");
     client.wait_idle().await;
     server_handle.abort();
 }

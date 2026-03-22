@@ -47,11 +47,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     eprintln!("=== nhttp3 server listening on {} ===", addr);
     eprintln!();
-    eprintln!("Test with:");
+    eprintln!("Test with nhttp3-client:");
+    eprintln!("  cargo run -p nhttp3-server --bin nhttp3-client -- https://localhost:4433/");
+    eprintln!("  cargo run -p nhttp3-server --bin nhttp3-client -- -v https://localhost:4433/health");
+    eprintln!("  cargo run -p nhttp3-server --bin nhttp3-client -- -X POST -d '{{\"msg\":\"hi\"}}' https://localhost:4433/echo");
+    eprintln!();
+    eprintln!("Or with curl (if HTTP/3 enabled):");
     eprintln!("  curl --http3 https://localhost:4433/ -k");
-    eprintln!("  curl --http3 https://localhost:4433/health -k");
-    eprintln!("  curl --http3 https://localhost:4433/echo -X POST -d 'hello' -k");
-    eprintln!("  curl --http3 https://localhost:4433/headers -k");
+    eprintln!();
+    eprintln!("Endpoints:");
+    eprintln!("  GET  /                      JSON hello");
+    eprintln!("  GET  /health                Health check");
+    eprintln!("  POST /echo                  Echo body");
+    eprintln!("  GET  /headers               Show headers + QPACK stats");
+    eprintln!("  GET  /qpack-demo            QPACK roundtrip demo");
+    eprintln!("  GET  /stream                SSE streaming (10 chunks)");
+    eprintln!("  POST /v1/chat/completions   OpenAI-compatible streaming");
+    eprintln!("  GET  /big                   1MB response");
     eprintln!();
 
     // Accept connections
@@ -207,6 +219,70 @@ async fn handle_request(
                 ((1.0 - encoded.len() as f64 / raw as f64) * 100.0) as u32,
                 decoded.len() == demo_headers.len(),
             );
+            send_response(stream, StatusCode::OK, "application/json", body.as_bytes()).await?;
+        }
+
+        "/stream" => {
+            // SSE streaming — demonstrates HTTP/3's no-HOL-blocking advantage
+            let resp = Response::builder()
+                .status(StatusCode::OK)
+                .header("content-type", "text/event-stream")
+                .header("cache-control", "no-cache")
+                .header("server", "nhttp3")
+                .body(())?;
+            stream.send_response(resp).await?;
+
+            for i in 0..10 {
+                let chunk = format!("data: {{\"chunk\":{},\"protocol\":\"h3\"}}\n\n", i);
+                stream.send_data(Bytes::from(chunk)).await?;
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+            stream.send_data(Bytes::from_static(b"data: [DONE]\n\n")).await?;
+            stream.finish().await?;
+            return Ok(());
+        }
+
+        "/v1/chat/completions" => {
+            // OpenAI-compatible streaming endpoint
+            let mut body_data = Vec::new();
+            while let Some(chunk) = stream.recv_data().await? {
+                use bytes::Buf;
+                let mut c = chunk;
+                while c.has_remaining() {
+                    let b = c.chunk();
+                    body_data.extend_from_slice(b);
+                    let l = b.len();
+                    c.advance(l);
+                }
+            }
+
+            let resp = Response::builder()
+                .status(StatusCode::OK)
+                .header("content-type", "text/event-stream")
+                .header("server", "nhttp3")
+                .body(())?;
+            stream.send_response(resp).await?;
+
+            let tokens = ["Hello", "!", " I'm", " serving", " over", " HTTP/3", " with", " nhttp3", "."];
+            for (i, token) in tokens.iter().enumerate() {
+                let is_last = i == tokens.len() - 1;
+                let chunk = format!(
+                    "data: {{\"id\":\"chatcmpl-1\",\"choices\":[{{\"delta\":{{\"content\":\"{}\"}},\"finish_reason\":{}}}]}}\n\n",
+                    token,
+                    if is_last { "\"stop\"" } else { "null" }
+                );
+                stream.send_data(Bytes::from(chunk)).await?;
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+            stream.send_data(Bytes::from_static(b"data: [DONE]\n\n")).await?;
+            stream.finish().await?;
+            return Ok(());
+        }
+
+        "/big" => {
+            // Large response — tests QUIC flow control
+            let data = "x".repeat(1_000_000);
+            let body = format!(r#"{{"size":{},"protocol":"h3","sample":"{}..."}}"#, data.len(), &data[..50]);
             send_response(stream, StatusCode::OK, "application/json", body.as_bytes()).await?;
         }
 

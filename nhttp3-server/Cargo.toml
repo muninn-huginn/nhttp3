@@ -9,6 +9,10 @@ description = "Working HTTP/3 server — quinn transport + nhttp3 protocol layer
 name = "nhttp3-server"
 path = "src/main.rs"
 
+[[bin]]
+name = "nhttp3-client"
+path = "src/client.rs"
+
 [dependencies]
 # QUIC transport (proven, battle-tested)
 quinn = { workspace = true }
