@@ -1,17 +1,16 @@
 //! WASM bindings for nhttp3.
 //!
-//! Browser target: Uses WebTransport API as the underlying transport,
-//! with nhttp3 handling HTTP/3 framing on top.
-//!
-//! Non-browser WASM: Full stack runs where UDP socket access is available
-//! (e.g., Cloudflare Workers, Deno).
+//! Browser: WebTransport as transport, nhttp3 for HTTP/3 framing.
+//! Node.js: Import as ESM, use for QPACK/frame encoding.
+//! Cloudflare Workers / Deno: Full stack where UDP sockets are available.
 
 use wasm_bindgen::prelude::*;
 
 mod config;
 mod frame;
+mod headers;
 
-/// Initialize the WASM module. Call once at startup.
+/// Initialize the WASM module.
 #[wasm_bindgen(start)]
 pub fn init() {
     #[cfg(feature = "console_error_panic_hook")]
