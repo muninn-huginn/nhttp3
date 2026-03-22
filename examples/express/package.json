@@ -1,0 +1,13 @@
+{
+  "name": "nhttp3-express-example",
+  "version": "0.1.0",
+  "description": "Express-style HTTP/3 server using nhttp3 WASM",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build-wasm": "cd ../../nhttp3-wasm && wasm-pack build --target nodejs && cd ../examples/express && npm link ../../nhttp3-wasm/pkg"
+  },
+  "dependencies": {
+    "nhttp3": "file:../../nhttp3-wasm/pkg"
+  }
+}
