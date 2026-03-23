@@ -24,3 +24,4 @@ nhttp3 = "nhttp3.__main__:main"
 [tool.maturin]
 features = ["pyo3/extension-module"]
 module-name = "nhttp3._nhttp3"
+python-source = "python"

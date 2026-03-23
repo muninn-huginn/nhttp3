@@ -45,12 +45,10 @@ def serve(app, *, host="0.0.0.0", port=4433, certfile=None, keyfile=None):
         nhttp3.serve(app, host="0.0.0.0", port=4433,
                       certfile="cert.pem", keyfile="key.pem")
     """
-    import asyncio
-
     server = H3Server(
         app, host=host, port=port, certfile=certfile, keyfile=keyfile
     )
-    asyncio.run(server.serve())
+    server.serve()  # Blocks until Ctrl+C — runs QUIC server on tokio
 
 
 __all__ = [
