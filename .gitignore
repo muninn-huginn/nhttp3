@@ -4,3 +4,12 @@ target/
 *.swp
 *.swo
 Cargo.lock
+__pycache__/
+*.pyc
+*.so
+*.dylib
+*.dSYM/
+*.node
+node_modules/
+.next/
+.venv/
