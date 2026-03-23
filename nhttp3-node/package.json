@@ -1,0 +1,17 @@
+{
+  "name": "nhttp3-node",
+  "version": "0.1.0",
+  "description": "Native HTTP/3 server for Node.js — no proxy, powered by Rust + QUIC",
+  "main": "index.js",
+  "napi": {
+    "name": "nhttp3-node",
+    "triples": {}
+  },
+  "scripts": {
+    "build": "napi build --release",
+    "test": "node test.js"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2"
+  }
+}

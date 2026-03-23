@@ -10,6 +10,7 @@ members = [
     "nhttp3-python",
     "nhttp3-wasm",
     "nhttp3-server",
+    "nhttp3-node",
 ]
 
 [workspace.package]

@@ -1,0 +1,27 @@
+[package]
+name = "nhttp3-node"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Node.js native HTTP/3 server addon via napi-rs"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+nhttp3-qpack = { path = "../crates/nhttp3-qpack" }
+nhttp3-h3 = { path = "../crates/nhttp3-h3" }
+nhttp3-core = { path = "../crates/nhttp3-core" }
+napi = { version = "2", features = ["async", "tokio_rt"] }
+napi-derive = "2"
+quinn = { workspace = true }
+h3 = { workspace = true }
+h3-quinn = { workspace = true }
+tokio = { workspace = true }
+rustls = { workspace = true }
+rcgen = { workspace = true }
+http = { workspace = true }
+bytes = { workspace = true }
+
+[build-dependencies]
+napi-build = "2"
