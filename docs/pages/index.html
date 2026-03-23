@@ -315,36 +315,35 @@
 <!-- ── CLIENTS ── -->
 <div class="section">
   <div class="section-label">// clients</div>
-  <h2>Client <span class="accent">access</span></h2>
-  <div class="panel-grid">
-    <div class="panel">
-      <div class="panel-name">curl</div>
-      <h3>curl --http3</h3>
-      <p style="font-size:0.85rem;color:var(--lab-text-muted);">
-        <code style="color:var(--lab-teal)">curl --http3 https://localhost:4433/ -k</code><br><br>
-        Parallel multiplexing:<br>
-        <code style="color:var(--lab-teal)">curl --http3 --parallel url1 url2 url3 -k</code><br><br>
-        Requires curl 7.88+ with HTTP/3 support.
-      </p>
-    </div>
-    <div class="panel">
-      <div class="panel-name">Browser</div>
-      <h3>Fetch API + WebTransport</h3>
-      <p style="font-size:0.85rem;color:var(--lab-text-muted);">
-        Browsers auto-negotiate HTTP/3 via Alt-Svc header. Standard fetch() works — Chrome/Firefox/Safari all support h3.<br><br>
-        WebTransport API for bidirectional streams and datagrams (Chrome 97+).
-      </p>
-    </div>
-    <div class="panel">
-      <div class="panel-name">Python</div>
-      <h3>nhttp3 client</h3>
-      <p style="font-size:0.85rem;color:var(--lab-text-muted);">
-        <code style="color:var(--lab-teal)">conn = await ep.connect("host", 443)</code><br>
-        <code style="color:var(--lab-teal)">send, recv = await conn.open_bidi_stream()</code><br><br>
-        Async/await native. Multiplexed streams without HOL blocking.
-      </p>
-    </div>
-  </div>
+  <h2>Connecting <span class="accent">to nhttp3</span></h2>
+
+  <table class="rfc-table">
+    <thead><tr><th>Client</th><th>How</th><th>Docs</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="rfc-id">nhttp3-client</td>
+        <td>Built-in Rust client with timing and verbose output</td>
+        <td><code style="color:var(--lab-teal);font-size:0.8rem">cargo run -p nhttp3-server --bin nhttp3-client -- URL</code></td>
+      </tr>
+      <tr>
+        <td class="rfc-id">curl</td>
+        <td>curl 7.88+ with <code>--http3</code> flag. Parallel with <code>--parallel</code></td>
+        <td><a href="docs/curl.html" style="color:var(--lab-teal)">curl guide</a></td>
+      </tr>
+      <tr>
+        <td class="rfc-id">Browser</td>
+        <td>Auto-negotiates via Alt-Svc. Standard <code>fetch()</code> works. WebTransport for streams.</td>
+        <td><a href="docs/browser.html" style="color:var(--lab-teal)">browser guide</a> · <a href="client.html" style="color:var(--lab-blue)">live demo</a></td>
+      </tr>
+      <tr>
+        <td class="rfc-id">Python</td>
+        <td><code style="color:var(--lab-teal);font-size:0.8rem">conn = await ep.connect("host", 443)</code></td>
+        <td><a href="docs/python-client.html" style="color:var(--lab-teal)">python guide</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="readout-note">All clients connect to any nhttp3 server (Python, Node.js, or Rust). The protocol is standard HTTP/3 — any HTTP/3 client works.</div>
 </div>
 
 <hr class="divider">
