@@ -1,8 +1,9 @@
 {
   "name": "nhttp3-node",
   "version": "0.1.0",
-  "description": "Native HTTP/3 server for Node.js — no proxy, powered by Rust + QUIC",
+  "description": "Native HTTP/3 for Node.js — server, client, and QPACK. Powered by Rust + QUIC.",
   "main": "index.js",
+  "types": "index.d.ts",
   "napi": {
     "name": "nhttp3-node",
     "triples": {}
@@ -11,6 +12,8 @@
     "build": "napi build --release",
     "test": "node test.js"
   },
+  "keywords": ["http3", "quic", "h3", "server", "client", "fetch", "qpack", "native"],
+  "license": "MIT",
   "devDependencies": {
     "@napi-rs/cli": "^2"
   }

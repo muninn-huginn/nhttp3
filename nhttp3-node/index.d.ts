@@ -22,3 +22,32 @@ export interface H3Response {
  * Blocks until the server stops.
  */
 export declare function serve(port: number, handler: (req: H3Request) => H3Response): void
+/** Response from an HTTP/3 fetch. */
+export interface FetchResponse {
+  status: number
+  headers: Array<Array<string>>
+  body: string
+  /** QUIC connect time in milliseconds */
+  connectMs: number
+  /** Total request time in milliseconds */
+  totalMs: number
+}
+/** Options for fetch. */
+export interface FetchOptions {
+  method?: string
+  body?: string
+  headers?: Array<Array<string>>
+}
+/**
+ * HTTP/3 fetch — like fetch() but over QUIC. Returns a Promise.
+ *
+ * Usage:
+ *   const resp = await h3fetch('https://localhost:4433/health');
+ *   console.log(resp.status, resp.body);
+ *
+ *   const resp = await h3fetch('https://localhost:4433/echo', {
+ *     method: 'POST',
+ *     body: JSON.stringify({ hello: 'world' }),
+ *   });
+ */
+export declare function h3Fetch(url: string, options?: FetchOptions | undefined | null): Promise<FetchResponse>

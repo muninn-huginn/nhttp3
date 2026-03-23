@@ -8,7 +8,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use quinn::crypto::rustls::QuicServerConfig;
+use quinn::crypto::rustls::{QuicClientConfig, QuicServerConfig};
 
 #[napi]
 pub fn version() -> String {
@@ -157,4 +157,164 @@ async fn run_h3_server(
         });
     }
     Ok(())
+}
+
+// ─── HTTP/3 Client (fetch) ───
+
+#[derive(Debug)]
+struct NoCertVerifier;
+impl rustls::client::danger::ServerCertVerifier for NoCertVerifier {
+    fn verify_server_cert(&self, _: &rustls::pki_types::CertificateDer<'_>, _: &[rustls::pki_types::CertificateDer<'_>], _: &rustls::pki_types::ServerName<'_>, _: &[u8], _: rustls::pki_types::UnixTime) -> std::result::Result<rustls::client::danger::ServerCertVerified, rustls::Error> { Ok(rustls::client::danger::ServerCertVerified::assertion()) }
+    fn verify_tls12_signature(&self, _: &[u8], _: &rustls::pki_types::CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> std::result::Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
+    fn verify_tls13_signature(&self, _: &[u8], _: &rustls::pki_types::CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> std::result::Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> { rustls::crypto::ring::default_provider().signature_verification_algorithms.supported_schemes() }
+}
+
+/// Response from an HTTP/3 fetch.
+#[napi(object)]
+pub struct FetchResponse {
+    pub status: u32,
+    pub headers: Vec<Vec<String>>,
+    pub body: String,
+    /// QUIC connect time in milliseconds
+    pub connect_ms: f64,
+    /// Total request time in milliseconds
+    pub total_ms: f64,
+}
+
+/// Options for fetch.
+#[napi(object)]
+pub struct FetchOptions {
+    pub method: Option<String>,
+    pub body: Option<String>,
+    pub headers: Option<Vec<Vec<String>>>,
+}
+
+/// HTTP/3 fetch — like fetch() but over QUIC. Returns a Promise.
+///
+/// Usage:
+///   const resp = await h3fetch('https://localhost:4433/health');
+///   console.log(resp.status, resp.body);
+///
+///   const resp = await h3fetch('https://localhost:4433/echo', {
+///     method: 'POST',
+///     body: JSON.stringify({ hello: 'world' }),
+///   });
+#[napi]
+pub async fn h3fetch(url: String, options: Option<FetchOptions>) -> Result<FetchResponse> {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
+    let opts = options.unwrap_or(FetchOptions { method: None, body: None, headers: None });
+    let method = opts.method.unwrap_or_else(|| "GET".to_string());
+
+    // Parse URL
+    let parsed: http::Uri = url.parse()
+        .map_err(|e| Error::from_reason(format!("invalid URL: {e}")))?;
+    let host = parsed.host().unwrap_or("localhost").to_string();
+    let port = parsed.port_u16().unwrap_or(4433);
+    let path = parsed.path_and_query().map(|p| p.as_str()).unwrap_or("/").to_string();
+
+    let start = std::time::Instant::now();
+
+    // Setup QUIC client
+    let mut tls = rustls::ClientConfig::builder()
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(NoCertVerifier))
+        .with_no_client_auth();
+    tls.alpn_protocols = vec![b"h3".to_vec()];
+
+    let client_config = quinn::ClientConfig::new(Arc::new(
+        QuicClientConfig::try_from(tls)
+            .map_err(|e| Error::from_reason(format!("TLS: {e}")))?
+    ));
+
+    let mut endpoint = quinn::Endpoint::client("0.0.0.0:0".parse().unwrap())
+        .map_err(|e| Error::from_reason(format!("endpoint: {e}")))?;
+    endpoint.set_default_client_config(client_config);
+
+    let addr: SocketAddr = format!("{}:{}", host, port).parse()
+        .unwrap_or_else(|_| format!("127.0.0.1:{}", port).parse().unwrap());
+
+    // QUIC connect
+    let conn = endpoint.connect(addr, &host)
+        .map_err(|e| Error::from_reason(format!("connect: {e}")))?
+        .await
+        .map_err(|e| Error::from_reason(format!("QUIC handshake: {e}")))?;
+
+    let connect_ms = start.elapsed().as_secs_f64() * 1000.0;
+
+    // H3 connection
+    let (mut driver, mut send_request) = h3::client::new(h3_quinn::Connection::new(conn))
+        .await
+        .map_err(|e| Error::from_reason(format!("h3: {e}")))?;
+
+    tokio::spawn(async move {
+        let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await;
+    });
+
+    // Build request
+    let mut req_builder = http::Request::builder()
+        .method(method.as_str())
+        .uri(format!("https://{}:{}{}", host, port, path));
+
+    if let Some(ref hdrs) = opts.headers {
+        for pair in hdrs {
+            if pair.len() >= 2 {
+                req_builder = req_builder.header(pair[0].as_str(), pair[1].as_str());
+            }
+        }
+    }
+
+    if opts.body.is_some() {
+        req_builder = req_builder.header("content-type", "application/json");
+    }
+
+    let req = req_builder.body(())
+        .map_err(|e| Error::from_reason(format!("request: {e}")))?;
+
+    // Send
+    let mut stream = send_request.send_request(req).await
+        .map_err(|e| Error::from_reason(format!("send: {e}")))?;
+
+    if let Some(body) = opts.body {
+        stream.send_data(Bytes::from(body.into_bytes())).await
+            .map_err(|e| Error::from_reason(format!("send body: {e}")))?;
+    }
+    stream.finish().await
+        .map_err(|e| Error::from_reason(format!("finish: {e}")))?;
+
+    // Receive
+    let resp = stream.recv_response().await
+        .map_err(|e| Error::from_reason(format!("recv: {e}")))?;
+
+    let status = resp.status().as_u16() as u32;
+    let headers: Vec<Vec<String>> = resp.headers().iter()
+        .map(|(k, v)| vec![k.to_string(), v.to_str().unwrap_or("").to_string()])
+        .collect();
+
+    let mut body_bytes = Vec::new();
+    while let Some(chunk) = stream.recv_data().await
+        .map_err(|e| Error::from_reason(format!("recv data: {e}")))? {
+        use bytes::Buf;
+        let mut c = chunk;
+        while c.has_remaining() {
+            let b = c.chunk();
+            body_bytes.extend_from_slice(b);
+            let l = b.len();
+            c.advance(l);
+        }
+    }
+
+    let total_ms = start.elapsed().as_secs_f64() * 1000.0;
+
+    drop(send_request);
+    endpoint.close(0u32.into(), b"done");
+
+    Ok(FetchResponse {
+        status,
+        headers,
+        body: String::from_utf8_lossy(&body_bytes).to_string(),
+        connect_ms,
+        total_ms,
+    })
 }

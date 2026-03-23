@@ -1,22 +1,17 @@
 /**
- * nhttp3 — Native HTTP/3 server for Node.js.
+ * nhttp3 — Native HTTP/3 for Node.js.
  *
- * Usage:
- *   const { serve, encodeHeaders, decodeHeaders, version } = require('nhttp3-node');
+ * Server:
+ *   const { serve } = require('nhttp3-node');
+ *   serve(4433, (req) => ({ status: 200, headers: [...], body: '...' }));
  *
- *   // Express-like API
- *   serve(4433, (req) => {
- *     console.log(`${req.method} ${req.path}`);
- *     return {
- *       status: 200,
- *       headers: [['content-type', 'application/json']],
- *       body: JSON.stringify({ hello: 'world', protocol: 'h3' }),
- *     };
- *   });
+ * Client:
+ *   const { h3fetch } = require('nhttp3-node');
+ *   const resp = await h3fetch('https://localhost:4433/health');
+ *   console.log(resp.status, resp.body);
  *
- *   // QPACK header compression
- *   const encoded = encodeHeaders([[':method', 'GET'], [':path', '/']]);
- *   const decoded = decodeHeaders(encoded);
+ * QPACK:
+ *   const { encodeHeaders, decodeHeaders } = require('nhttp3-node');
  */
 
 const native = require('./nhttp3-node.node');
@@ -24,6 +19,7 @@ const native = require('./nhttp3-node.node');
 module.exports = {
   version: native.version,
   serve: native.serve,
+  h3fetch: native.h3Fetch,
   encodeHeaders: native.encodeHeaders,
   decodeHeaders: native.decodeHeaders,
 };
