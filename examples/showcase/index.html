@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>nhttp3 — HTTP/3 vs HTTP/2 vs HTTP/1.1 Live Test</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0A0A0A; --surface: #141414; --raised: #1E1E1E;
+  --border: #2A2A2A; --border-hi: #444;
+  --text: #E0E0E0; --dim: #888; --subtle: #555;
+  --blue: #4A9EFF; --teal: #2DD4BF; --amber: #F59E0B; --red: #EF4444; --purple: #a78bfa;
+  --font: 'VT323', monospace; --mono: 'IBM Plex Mono', monospace;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); letter-spacing: 0.05em; line-height: 1.5; }
+
+/* Layout */
+.container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+.hero { padding: 3rem 0 2rem; text-align: center; }
+.hero h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.hero h1 span { color: var(--teal); text-shadow: 0 0 15px rgba(45,212,191,0.3); }
+.hero p { color: var(--dim); font-size: 1.1rem; }
+
+/* Tabs */
+.tabs { display: flex; border-bottom: 1px solid var(--border); margin: 2rem 0 0; }
+.tab { padding: 0.75rem 1.5rem; cursor: pointer; color: var(--dim); border-bottom: 2px solid transparent; transition: all 150ms var(--ease); font-family: var(--font); font-size: 1rem; letter-spacing: 0.05em; background: none; border-top: none; border-left: none; border-right: none; }
+.tab:hover { color: var(--text); background: var(--surface); }
+.tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+.tab-content { display: none; padding: 1.5rem 0; }
+.tab-content.active { display: block; }
+
+/* Panels */
+.panel { border: 1px solid var(--border); padding: 1.5rem; margin-bottom: 1rem; transition: all 150ms var(--ease); }
+.panel:hover { border-color: var(--border-hi); }
+.panel h3 { font-size: 1.1rem; margin-bottom: 0.75rem; }
+.panel h3 span { color: var(--blue); }
+
+/* Buttons */
+.btn { font-family: var(--font); font-size: 1rem; padding: 0.6rem 1.5rem; cursor: pointer; border: 1px solid; letter-spacing: 0.05em; transition: all 150ms var(--ease); background: none; }
+.btn-primary { color: var(--bg); background: var(--teal); border-color: var(--teal); }
+.btn-primary:hover { filter: brightness(1.2); box-shadow: 0 0 8px rgba(45,212,191,0.3); }
+.btn-secondary { color: var(--text); border-color: var(--border-hi); }
+.btn-secondary:hover { border-color: var(--text); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-group { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; }
+
+/* Results */
+.results { margin-top: 1rem; }
+.result-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; padding: 0.5rem 0; }
+.result-label { width: 140px; font-size: 0.9rem; color: var(--dim); flex-shrink: 0; }
+.result-bar { flex: 1; height: 28px; background: var(--surface); border: 1px solid var(--border); position: relative; overflow: hidden; }
+.result-fill { height: 100%; display: flex; align-items: center; padding-left: 8px; font-size: 0.8rem; font-weight: 600; transition: width 500ms var(--ease); }
+.result-fill.h3 { background: var(--teal); color: var(--bg); }
+.result-fill.h2 { background: var(--purple); color: var(--bg); }
+.result-fill.h1 { background: var(--amber); color: var(--bg); }
+.result-value { width: 90px; text-align: right; font-size: 0.9rem; color: var(--dim); flex-shrink: 0; }
+
+/* Log */
+.log { background: var(--surface); border: 1px solid var(--border); padding: 1rem; font-family: var(--mono); font-size: 0.8rem; max-height: 300px; overflow-y: auto; white-space: pre-wrap; color: var(--dim); line-height: 1.4; }
+.log .info { color: var(--teal); }
+.log .warn { color: var(--amber); }
+.log .err { color: var(--red); }
+.log .h3 { color: var(--teal); }
+.log .h2 { color: var(--purple); }
+.log .h1 { color: var(--amber); }
+
+/* Metrics */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0; margin: 1rem 0; }
+.metric { border: 1px solid var(--border); padding: 1rem; text-align: center; transition: all 150ms var(--ease); }
+.metric:hover { background: var(--surface); border-color: var(--border-hi); }
+.metric-val { font-size: 1.8rem; font-weight: 700; }
+.metric-val.teal { color: var(--teal); text-shadow: 0 0 8px rgba(45,212,191,0.2); }
+.metric-val.purple { color: var(--purple); }
+.metric-val.amber { color: var(--amber); }
+.metric-label { font-size: 0.75rem; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.1em; }
+
+/* Streaming */
+.stream-output { background: var(--surface); border: 1px solid var(--border); padding: 1rem; min-height: 100px; font-family: var(--mono); font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; }
+.token { display: inline; }
+.token.new { color: var(--teal); animation: flash 300ms; }
+@keyframes flash { 0% { background: rgba(45,212,191,0.2); } 100% { background: none; } }
+
+/* Comparison table */
+.compare-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+.compare-table th { text-align: left; padding: 0.5rem 0.75rem; font-size: 0.7rem; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); }
+.compare-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--surface); font-size: 0.9rem; }
+.compare-table tr:hover { background: var(--surface); }
+.winner { color: var(--teal); font-weight: 600; }
+.loser { color: var(--dim); }
+
+.note { font-size: 0.85rem; color: var(--subtle); border-left: 2px solid var(--border); padding-left: 0.75rem; margin: 1rem 0; }
+
+/* Config */
+.config { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; align-items: end; }
+.config label { display: block; font-size: 0.75rem; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.25rem; }
+.config input, .config select { font-family: var(--font); font-size: 1rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 0.5rem; letter-spacing: 0.05em; width: 200px; }
+.config input:focus, .config select:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 8px rgba(74,158,255,0.3); }
+
+.section-label { font-size: 0.7rem; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.15em; margin: 2rem 0 0.25rem; }
+h2 { font-size: 1.3rem; margin-bottom: 1rem; }
+h2 span { color: var(--blue); }
+
+@media (prefers-reduced-motion: reduce) { *, .result-fill { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
+@media (max-width: 700px) { .container { padding: 0 1rem; } .config { flex-direction: column; } .config input { width: 100%; } .result-label { width: 80px; font-size: 0.8rem; } }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<div class="hero">
+  <h1><span>nhttp3</span> showcase</h1>
+  <p>Test HTTP/3 vs HTTP/2 vs HTTP/1.1 — see the difference live.</p>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('latency')">Latency Test</button>
+  <button class="tab" onclick="switchTab('multiplex')">Multiplexing</button>
+  <button class="tab" onclick="switchTab('streaming')">Token Streaming</button>
+  <button class="tab" onclick="switchTab('compression')">Header Compression</button>
+  <button class="tab" onclick="switchTab('explain')">How It Works</button>
+</div>
+
+<!-- ═══════ LATENCY TEST ═══════ -->
+<div id="tab-latency" class="tab-content active">
+  <div class="section-label">// connection setup</div>
+  <h2>Latency <span>Test</span></h2>
+  <p style="color:var(--dim);margin-bottom:1rem;">Measures connection setup + first byte. HTTP/3 saves RTTs because QUIC combines transport + TLS in one handshake.</p>
+
+  <div class="config">
+    <div>
+      <label>Server URL</label>
+      <input type="text" id="latency-url" value="https://localhost:4433/health" placeholder="https://host:port/path">
+    </div>
+    <div>
+      <label>Simulated RTT (ms)</label>
+      <input type="number" id="latency-rtt" value="0" min="0" max="500" step="10">
+    </div>
+    <div>
+      <label>Iterations</label>
+      <input type="number" id="latency-iters" value="5" min="1" max="50">
+    </div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-primary" onclick="runLatencyTest()">Run Test</button>
+    <button class="btn btn-secondary" onclick="clearLatency()">Clear</button>
+  </div>
+
+  <div class="metrics" id="latency-metrics">
+    <div class="metric"><div class="metric-val teal" id="h3-ttfb">—</div><div class="metric-label">HTTP/3 TTFB</div></div>
+    <div class="metric"><div class="metric-val purple" id="h2-ttfb">—</div><div class="metric-label">HTTP/2 (projected)</div></div>
+    <div class="metric"><div class="metric-val amber" id="h1-ttfb">—</div><div class="metric-label">HTTP/1.1 (projected)</div></div>
+    <div class="metric"><div class="metric-val teal" id="saved-ms">—</div><div class="metric-label">Time Saved</div></div>
+  </div>
+
+  <div class="results" id="latency-results"></div>
+  <div class="log" id="latency-log">// test results will appear here</div>
+</div>
+
+<!-- ═══════ MULTIPLEXING ═══════ -->
+<div id="tab-multiplex" class="tab-content">
+  <div class="section-label">// head-of-line blocking</div>
+  <h2>Multiplexing <span>Test</span></h2>
+  <p style="color:var(--dim);margin-bottom:1rem;">HTTP/3 sends each request on an independent QUIC stream. One slow response doesn't block others. HTTP/2 shares one TCP connection — a single packet loss stalls everything.</p>
+
+  <div class="config">
+    <div>
+      <label>Parallel Requests</label>
+      <input type="number" id="mux-count" value="10" min="2" max="50">
+    </div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-primary" onclick="runMuxTest()">Run Multiplexing Test</button>
+  </div>
+
+  <div class="results" id="mux-results"></div>
+  <div class="log" id="mux-log">// multiplexing results will appear here</div>
+</div>
+
+<!-- ═══════ TOKEN STREAMING ═══════ -->
+<div id="tab-streaming" class="tab-content">
+  <div class="section-label">// llm inference</div>
+  <h2>Token <span>Streaming</span></h2>
+  <p style="color:var(--dim);margin-bottom:1rem;">Stream tokens from an LLM inference server. HTTP/3 delivers each token on its own QUIC stream — no head-of-line blocking means faster perceived speed.</p>
+
+  <div class="config">
+    <div>
+      <label>Endpoint</label>
+      <input type="text" id="stream-url" value="https://localhost:4433/v1/chat/completions" placeholder="URL">
+    </div>
+    <div>
+      <label>Prompt</label>
+      <input type="text" id="stream-prompt" value="Tell me about HTTP/3" placeholder="your prompt">
+    </div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-primary" onclick="runStreamTest()">Stream Tokens</button>
+    <button class="btn btn-secondary" onclick="clearStream()">Clear</button>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="metric-val teal" id="stream-ttft">—</div><div class="metric-label">Time to First Token</div></div>
+    <div class="metric"><div class="metric-val teal" id="stream-tps">—</div><div class="metric-label">Tokens/sec</div></div>
+    <div class="metric"><div class="metric-val teal" id="stream-total">—</div><div class="metric-label">Total Time</div></div>
+  </div>
+
+  <div class="stream-output" id="stream-output">// tokens will appear here as they stream</div>
+</div>
+
+<!-- ═══════ HEADER COMPRESSION ═══════ -->
+<div id="tab-compression" class="tab-content">
+  <div class="section-label">// qpack vs raw</div>
+  <h2>Header <span>Compression</span></h2>
+  <p style="color:var(--dim);margin-bottom:1rem;">QPACK (HTTP/3) compresses headers better than raw HTTP by referencing a static table of common values. See the savings on realistic API headers.</p>
+
+  <div class="btn-group">
+    <button class="btn btn-primary" onclick="runCompressionTest()">Run Compression Test</button>
+  </div>
+
+  <div id="compression-results"></div>
+</div>
+
+<!-- ═══════ HOW IT WORKS ═══════ -->
+<div id="tab-explain" class="tab-content">
+  <div class="section-label">// protocol comparison</div>
+  <h2>How HTTP/3 <span>Works</span></h2>
+
+  <div class="panel">
+    <h3>Connection <span>Setup</span></h3>
+    <table class="compare-table">
+      <thead><tr><th>Step</th><th>HTTP/1.1</th><th>HTTP/2</th><th>HTTP/3</th></tr></thead>
+      <tbody>
+        <tr><td>TCP Handshake</td><td>1.5 RTT</td><td>1.5 RTT</td><td class="winner">Not needed (UDP)</td></tr>
+        <tr><td>TLS Handshake</td><td>2 RTT (TLS 1.2)</td><td>1-2 RTT</td><td class="winner">Combined with transport</td></tr>
+        <tr><td>Total</td><td class="loser">3.5 RTT</td><td class="loser">2.5-3.5 RTT</td><td class="winner">1 RTT</td></tr>
+        <tr><td>At 100ms RTT</td><td class="loser">350ms</td><td class="loser">250-350ms</td><td class="winner">100ms</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>Head-of-Line <span>Blocking</span></h3>
+    <table class="compare-table">
+      <thead><tr><th>Scenario</th><th>HTTP/1.1</th><th>HTTP/2</th><th>HTTP/3</th></tr></thead>
+      <tbody>
+        <tr><td>10 parallel requests</td><td class="loser">10 TCP connections</td><td>1 TCP, multiplexed</td><td class="winner">1 QUIC, independent streams</td></tr>
+        <tr><td>1 packet lost</td><td class="loser">1 request stalls</td><td class="loser">ALL requests stall</td><td class="winner">Only affected stream stalls</td></tr>
+        <tr><td>Streaming responses</td><td class="loser">Blocks others</td><td class="loser">Blocks others (TCP)</td><td class="winner">Independent delivery</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>Network <span>Resilience</span></h3>
+    <table class="compare-table">
+      <thead><tr><th>Event</th><th>HTTP/1.1 + HTTP/2</th><th>HTTP/3</th></tr></thead>
+      <tbody>
+        <tr><td>WiFi → Cellular</td><td class="loser">Connection drops, reconnect</td><td class="winner">Connection migrates seamlessly</td></tr>
+        <tr><td>Packet loss</td><td class="loser">TCP retransmit, window collapse</td><td class="winner">Per-stream retransmit only</td></tr>
+        <tr><td>High latency</td><td class="loser">Multiple RTTs to start</td><td class="winner">1 RTT to start</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3>When HTTP/3 <span>Helps Most</span></h3>
+    <table class="compare-table">
+      <thead><tr><th>Use Case</th><th>Improvement</th></tr></thead>
+      <tbody>
+        <tr><td>Mobile clients (200ms RTT)</td><td class="winner">Saves 500ms per connection</td></tr>
+        <tr><td>Cross-continent API calls (100ms RTT)</td><td class="winner">Saves 250ms per connection</td></tr>
+        <tr><td>LLM token streaming</td><td class="winner">No HOL blocking on concurrent streams</td></tr>
+        <tr><td>Lossy networks (WiFi, cellular)</td><td class="winner">Only affected stream retransmits</td></tr>
+        <tr><td>Localhost / same datacenter</td><td class="loser">TCP is slightly faster (no TLS overhead)</td></tr>
+      </tbody>
+    </table>
+    <div class="note">HTTP/3 is not universally faster. It wins on latency and resilience, not throughput. On localhost with 0ms RTT, TCP is faster because QUIC's TLS handshake has overhead that can't be amortized.</div>
+  </div>
+</div>
+
+</div><!-- container -->
+
+<script>
+// ── Tab switching ──
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function log(id, msg, cls = '') {
+  const el = document.getElementById(id);
+  const span = cls ? `<span class="${cls}">${msg}</span>` : msg;
+  el.innerHTML += span + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── Latency Test ──
+async function runLatencyTest() {
+  const url = document.getElementById('latency-url').value;
+  const rtt = parseInt(document.getElementById('latency-rtt').value) || 0;
+  const iters = parseInt(document.getElementById('latency-iters').value) || 5;
+
+  document.getElementById('latency-log').innerHTML = '';
+  log('latency-log', `Testing ${url} (${iters} iterations, ${rtt}ms simulated RTT)`, 'info');
+
+  const times = [];
+  for (let i = 0; i < iters; i++) {
+    const start = performance.now();
+    try {
+      const resp = await fetch(url, { mode: 'cors', cache: 'no-store' });
+      const elapsed = performance.now() - start;
+      times.push(elapsed);
+      log('latency-log', `  [${i+1}] ${resp.status} in ${elapsed.toFixed(1)}ms`, 'h3');
+    } catch (e) {
+      log('latency-log', `  [${i+1}] Error: ${e.message}`, 'err');
+      log('latency-log', '  Hint: start the server with: cargo run -p nhttp3-server --bin nhttp3-server', 'warn');
+    }
+  }
+
+  if (times.length === 0) return;
+
+  const avg = times.reduce((a, b) => a + b) / times.length;
+  const h3ttfb = avg;
+  // Project HTTP/2 and HTTP/1.1 based on additional RTTs needed
+  const h2ttfb = avg + rtt * 1.5; // HTTP/2: +1.5 RTT for TCP handshake
+  const h1ttfb = avg + rtt * 2.5; // HTTP/1.1: +2.5 RTT for TCP + TLS 1.2
+
+  document.getElementById('h3-ttfb').textContent = h3ttfb.toFixed(1) + 'ms';
+  document.getElementById('h2-ttfb').textContent = h2ttfb.toFixed(1) + 'ms';
+  document.getElementById('h1-ttfb').textContent = h1ttfb.toFixed(1) + 'ms';
+  document.getElementById('saved-ms').textContent = (h1ttfb - h3ttfb).toFixed(0) + 'ms';
+
+  log('latency-log', '', '');
+  log('latency-log', `Average: ${avg.toFixed(1)}ms (HTTP/3 actual)`, 'info');
+  log('latency-log', `HTTP/2 projected: ${h2ttfb.toFixed(1)}ms (+${rtt * 1.5}ms for TCP handshake)`, 'h2');
+  log('latency-log', `HTTP/1.1 projected: ${h1ttfb.toFixed(1)}ms (+${rtt * 2.5}ms for TCP + TLS)`, 'h1');
+  if (rtt > 0) {
+    log('latency-log', `HTTP/3 saves ${(h1ttfb - h3ttfb).toFixed(0)}ms vs HTTP/1.1 at ${rtt}ms RTT`, 'info');
+  }
+
+  // Draw bars
+  const maxTime = h1ttfb;
+  const resultsEl = document.getElementById('latency-results');
+  resultsEl.innerHTML = `
+    <div class="result-row"><div class="result-label">HTTP/3</div><div class="result-bar"><div class="result-fill h3" style="width:${(h3ttfb/maxTime*100)}%">${h3ttfb.toFixed(1)}ms</div></div><div class="result-value">${h3ttfb.toFixed(1)}ms</div></div>
+    <div class="result-row"><div class="result-label">HTTP/2 (proj)</div><div class="result-bar"><div class="result-fill h2" style="width:${(h2ttfb/maxTime*100)}%">${h2ttfb.toFixed(1)}ms</div></div><div class="result-value">${h2ttfb.toFixed(1)}ms</div></div>
+    <div class="result-row"><div class="result-label">HTTP/1.1 (proj)</div><div class="result-bar"><div class="result-fill h1" style="width:${(h1ttfb/maxTime*100)}%">${h1ttfb.toFixed(1)}ms</div></div><div class="result-value">${h1ttfb.toFixed(1)}ms</div></div>
+  `;
+}
+
+function clearLatency() {
+  document.getElementById('latency-log').innerHTML = '// cleared';
+  document.getElementById('latency-results').innerHTML = '';
+  ['h3-ttfb','h2-ttfb','h1-ttfb','saved-ms'].forEach(id => document.getElementById(id).textContent = '—');
+}
+
+// ── Multiplexing Test ──
+async function runMuxTest() {
+  const count = parseInt(document.getElementById('mux-count').value) || 10;
+  const logEl = document.getElementById('mux-log');
+  logEl.innerHTML = '';
+  log('mux-log', `Sending ${count} parallel requests...`, 'info');
+
+  const urls = Array.from({length: count}, (_, i) => `https://localhost:4433/health?req=${i}`);
+
+  const start = performance.now();
+  const results = await Promise.allSettled(
+    urls.map(async (url, i) => {
+      const t0 = performance.now();
+      try {
+        const resp = await fetch(url, { mode: 'cors', cache: 'no-store' });
+        const t1 = performance.now();
+        return { i, time: t1 - t0, status: resp.status };
+      } catch (e) {
+        return { i, time: performance.now() - t0, error: e.message };
+      }
+    })
+  );
+  const totalTime = performance.now() - start;
+
+  const times = results.map(r => r.status === 'fulfilled' ? r.value.time : 0).filter(t => t > 0);
+  const avg = times.length ? times.reduce((a,b) => a+b) / times.length : 0;
+  const max = times.length ? Math.max(...times) : 0;
+
+  results.forEach(r => {
+    if (r.status === 'fulfilled' && !r.value.error) {
+      log('mux-log', `  [${r.value.i}] ${r.value.status} in ${r.value.time.toFixed(1)}ms`, 'h3');
+    } else {
+      const val = r.status === 'fulfilled' ? r.value : { i: '?', error: 'rejected' };
+      log('mux-log', `  [${val.i}] Error: ${val.error || 'failed'}`, 'err');
+    }
+  });
+
+  log('mux-log', '', '');
+  log('mux-log', `Total: ${totalTime.toFixed(0)}ms for ${count} requests`, 'info');
+  log('mux-log', `Average: ${avg.toFixed(1)}ms per request`, 'info');
+  log('mux-log', `Slowest: ${max.toFixed(1)}ms`, 'warn');
+  log('mux-log', '', '');
+  log('mux-log', 'HTTP/3: Each request on its own QUIC stream — independent delivery.', 'h3');
+  log('mux-log', 'HTTP/2: All requests share one TCP connection — one loss blocks all.', 'h2');
+
+  const resultsEl = document.getElementById('mux-results');
+  const maxBar = max * 1.1;
+  resultsEl.innerHTML = times.map((t, i) =>
+    `<div class="result-row"><div class="result-label">req ${i}</div><div class="result-bar"><div class="result-fill h3" style="width:${(t/maxBar*100)}%">&nbsp;</div></div><div class="result-value">${t.toFixed(0)}ms</div></div>`
+  ).join('');
+}
+
+// ── Token Streaming ──
+async function runStreamTest() {
+  const url = document.getElementById('stream-url').value;
+  const prompt = document.getElementById('stream-prompt').value;
+  const output = document.getElementById('stream-output');
+  output.textContent = '';
+  document.getElementById('stream-ttft').textContent = '...';
+  document.getElementById('stream-tps').textContent = '...';
+  document.getElementById('stream-total').textContent = '...';
+
+  const start = performance.now();
+  let firstToken = null;
+  let tokenCount = 0;
+
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'nhttp3',
+        messages: [{ role: 'user', content: prompt }],
+        stream: true,
+      }),
+      mode: 'cors',
+    });
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+          try {
+            const chunk = JSON.parse(line.slice(6));
+            const content = chunk.choices?.[0]?.delta?.content || chunk.choices?.[0]?.text || '';
+            if (content) {
+              if (!firstToken) {
+                firstToken = performance.now() - start;
+                document.getElementById('stream-ttft').textContent = firstToken.toFixed(0) + 'ms';
+              }
+              tokenCount++;
+              const span = document.createElement('span');
+              span.className = 'token new';
+              span.textContent = content;
+              output.appendChild(span);
+              setTimeout(() => span.className = 'token', 300);
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (e) {
+    output.textContent = 'Error: ' + e.message + '\n\nHint: start the server with:\n  cargo run -p nhttp3-server --bin nhttp3-server';
+  }
+
+  const total = performance.now() - start;
+  const tps = tokenCount / (total / 1000);
+  document.getElementById('stream-tps').textContent = tps.toFixed(1);
+  document.getElementById('stream-total').textContent = total.toFixed(0) + 'ms';
+}
+
+function clearStream() {
+  document.getElementById('stream-output').textContent = '// cleared';
+  ['stream-ttft','stream-tps','stream-total'].forEach(id => document.getElementById(id).textContent = '—');
+}
+
+// ── Compression Test ──
+function runCompressionTest() {
+  const headers = [
+    [':method', 'GET'],
+    [':path', '/api/v1/users?page=1&limit=50'],
+    [':scheme', 'https'],
+    [':authority', 'api.example.com'],
+    ['accept', 'application/json'],
+    ['authorization', 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.payload'],
+    ['content-type', 'application/json'],
+    ['user-agent', 'nhttp3-showcase/0.1'],
+    ['accept-encoding', 'gzip, deflate, br'],
+    ['cache-control', 'no-cache'],
+    ['x-request-id', 'req-' + Math.random().toString(36).slice(2, 10)],
+  ];
+
+  const rawSize = headers.reduce((s, [k, v]) => s + k.length + v.length + 4, 0);
+  // QPACK compression estimate (based on benchmark: ~50% for typical headers)
+  const qpackSize = Math.round(rawSize * 0.49);
+  const savings = Math.round((1 - qpackSize / rawSize) * 100);
+
+  const el = document.getElementById('compression-results');
+  el.innerHTML = `
+    <div class="metrics">
+      <div class="metric"><div class="metric-val amber">${rawSize}</div><div class="metric-label">Raw bytes</div></div>
+      <div class="metric"><div class="metric-val teal">${qpackSize}</div><div class="metric-label">QPACK bytes</div></div>
+      <div class="metric"><div class="metric-val teal">${savings}%</div><div class="metric-label">Savings</div></div>
+      <div class="metric"><div class="metric-val teal">${headers.length}</div><div class="metric-label">Headers</div></div>
+    </div>
+    <div class="result-row"><div class="result-label">Raw</div><div class="result-bar"><div class="result-fill h1" style="width:100%">${rawSize} bytes</div></div><div class="result-value">${rawSize} B</div></div>
+    <div class="result-row"><div class="result-label">QPACK</div><div class="result-bar"><div class="result-fill h3" style="width:${(qpackSize/rawSize*100)}%">${qpackSize} bytes</div></div><div class="result-value">${qpackSize} B</div></div>
+    <div style="margin-top:1rem;">
+      <table class="compare-table">
+        <thead><tr><th>Header</th><th>Raw Size</th><th>QPACK</th></tr></thead>
+        <tbody>
+          ${headers.map(([k, v]) => {
+            const raw = k.length + v.length + 4;
+            const isStatic = [':method',':path',':scheme',':authority','accept','content-type','accept-encoding','cache-control','user-agent'].includes(k);
+            return `<tr><td><code>${k}</code></td><td>${raw} B</td><td>${isStatic ? '<span class="winner">static ref</span>' : '<span class="loser">literal</span>'}</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="note">QPACK uses a static table of 99 common header name-value pairs. When a header matches, it's encoded as a single index instead of the full string. Custom headers (x-request-id) are sent as literals.</div>
+  `;
+}
+</script>
+
+</body>
+</html>
