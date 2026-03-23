@@ -36,9 +36,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let key_der = cert.key_pair.serialize_der();
     let cert_der = cert.cert.der().to_vec();
 
-    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(
-        rustls::pki_types::PrivatePkcs8KeyDer::from(key_der.clone()),
-    );
+    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(rustls::pki_types::PrivatePkcs8KeyDer::from(
+        key_der.clone(),
+    ));
     let cert_pem = rustls::pki_types::CertificateDer::from(cert_der.clone());
 
     // ── HTTP/3 (QUIC) server ──
@@ -47,7 +47,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_single_cert(vec![cert_pem.clone()], key.clone_key())?;
     h3_tls.alpn_protocols = vec![b"h3".to_vec()];
 
-    let quic_config = quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(h3_tls)?));
+    let quic_config =
+        quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(h3_tls)?));
     let quic_endpoint = quinn::Endpoint::server(quic_config, addr)?;
 
     tokio::spawn(run_h3_server(quic_endpoint));
@@ -74,8 +75,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tcp_listener = TcpListener::bind(addr).await?;
 
     eprintln!("=== nhttp3 showcase ===");
-    eprintln!("HTTPS (TCP):  https://localhost:{} (serves HTML + API)", addr.port());
-    eprintln!("HTTP/3 (QUIC): https://localhost:{} (same port, auto-upgrade via Alt-Svc)", addr.port());
+    eprintln!(
+        "HTTPS (TCP):  https://localhost:{} (serves HTML + API)",
+        addr.port()
+    );
+    eprintln!(
+        "HTTP/3 (QUIC): https://localhost:{} (same port, auto-upgrade via Alt-Svc)",
+        addr.port()
+    );
     eprintln!();
     eprintln!("Open https://localhost:4433 in your browser.");
     eprintln!("Accept the self-signed certificate, then the showcase loads.");
@@ -94,8 +101,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let io = hyper_util::rt::TokioIo::new(tls_stream);
                     let service = hyper_util::service::TowerToHyperService::new(app);
                     if let Err(e) = hyper_util::server::conn::auto::Builder::new(
-                        hyper_util::rt::TokioExecutor::new()
-                    ).serve_connection(io, service).await {
+                        hyper_util::rt::TokioExecutor::new(),
+                    )
+                    .serve_connection(io, service)
+                    .await
+                    {
                         if !e.to_string().contains("closed") {
                             eprintln!("TCP conn error: {e}");
                         }
@@ -114,7 +124,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 // ── Alt-Svc middleware ──
 async fn add_alt_svc(req: Request, next: axum::middleware::Next) -> impl IntoResponse {
     let mut resp = next.run(req).await;
-    resp.headers_mut().insert("alt-svc", HeaderValue::from_static(r#"h3=":4433"; ma=86400"#));
+    resp.headers_mut().insert(
+        "alt-svc",
+        HeaderValue::from_static(r#"h3=":4433"; ma=86400"#),
+    );
     resp
 }
 
@@ -142,7 +155,10 @@ async fn headers_demo() -> Json<serde_json::Value> {
     ];
     let encoder = nhttp3_qpack::Encoder::new(0);
     let encoded = encoder.encode_header_block(&headers);
-    let raw: usize = headers.iter().map(|h| h.name.len() + h.value.len() + 4).sum();
+    let raw: usize = headers
+        .iter()
+        .map(|h| h.name.len() + h.value.len() + 4)
+        .sum();
 
     Json(json!({
         "count": headers.len(),
@@ -180,10 +196,15 @@ async fn stream_sse() -> impl IntoResponse {
     use std::time::Duration;
 
     let stream = stream::unfold(0, |i| async move {
-        if i >= 10 { return None; }
+        if i >= 10 {
+            return None;
+        }
         tokio::time::sleep(Duration::from_millis(100)).await;
         let data = format!(r#"{{"chunk":{},"protocol":"h3/h2/h1.1"}}"#, i);
-        Some((Ok::<_, std::convert::Infallible>(Event::default().data(data)), i + 1))
+        Some((
+            Ok::<_, std::convert::Infallible>(Event::default().data(data)),
+            i + 1,
+        ))
     });
 
     Sse::new(stream)
@@ -194,21 +215,32 @@ async fn chat_completions(body: String) -> impl IntoResponse {
     use futures_util::stream;
     use std::time::Duration;
 
-    let tokens = vec!["Hello", "!", " I'm", " serving", " over", " HTTP/3", " with", " nhttp3", "."];
+    let tokens = vec![
+        "Hello", "!", " I'm", " serving", " over", " HTTP/3", " with", " nhttp3", ".",
+    ];
 
     let stream = stream::unfold((0, tokens), |(i, tokens)| async move {
         if i >= tokens.len() {
-            return Some((Ok::<_, std::convert::Infallible>(Event::default().data("[DONE]")), (tokens.len() + 1, tokens)));
+            return Some((
+                Ok::<_, std::convert::Infallible>(Event::default().data("[DONE]")),
+                (tokens.len() + 1, tokens),
+            ));
         }
-        if i > tokens.len() { return None; }
+        if i > tokens.len() {
+            return None;
+        }
 
         tokio::time::sleep(Duration::from_millis(50)).await;
         let is_last = i == tokens.len() - 1;
         let data = format!(
             r#"{{"choices":[{{"delta":{{"content":"{}"}},"finish_reason":{}}}]}}"#,
-            tokens[i], if is_last { "\"stop\"" } else { "null" }
+            tokens[i],
+            if is_last { "\"stop\"" } else { "null" }
         );
-        Some((Ok::<_, std::convert::Infallible>(Event::default().data(data)), (i + 1, tokens)))
+        Some((
+            Ok::<_, std::convert::Infallible>(Event::default().data(data)),
+            (i + 1, tokens),
+        ))
     });
 
     Sse::new(stream)
@@ -219,10 +251,11 @@ async fn run_h3_server(endpoint: quinn::Endpoint) {
     while let Some(incoming) = endpoint.accept().await {
         tokio::spawn(async move {
             if let Ok(conn) = incoming.await {
-                let mut h3 = match h3::server::Connection::new(h3_quinn::Connection::new(conn)).await {
-                    Ok(c) => c,
-                    Err(_) => return,
-                };
+                let mut h3 =
+                    match h3::server::Connection::new(h3_quinn::Connection::new(conn)).await {
+                        Ok(c) => c,
+                        Err(_) => return,
+                    };
 
                 while let Ok(Some(resolver)) = h3.accept().await {
                     tokio::spawn(async move {
@@ -234,13 +267,20 @@ async fn run_h3_server(endpoint: quinn::Endpoint) {
                                     let demo = vec![
                                         nhttp3_qpack::HeaderField::new(":method", "GET"),
                                         nhttp3_qpack::HeaderField::new(":path", "/api"),
-                                        nhttp3_qpack::HeaderField::new("accept", "application/json"),
+                                        nhttp3_qpack::HeaderField::new(
+                                            "accept",
+                                            "application/json",
+                                        ),
                                     ];
                                     let enc = nhttp3_qpack::Encoder::new(0);
                                     let dec = nhttp3_qpack::Decoder::new(0);
                                     let encoded = enc.encode_header_block(&demo);
                                     let decoded = dec.decode_header_block(&encoded).unwrap();
-                                    format!(r#"{{"roundtrip":{},"qpack":{}}}"#, decoded.len() == demo.len(), encoded.len())
+                                    format!(
+                                        r#"{{"roundtrip":{},"qpack":{}}}"#,
+                                        decoded.len() == demo.len(),
+                                        encoded.len()
+                                    )
                                 }
                                 _ => format!(r#"{{"path":"{}","protocol":"h3"}}"#, path),
                             };
@@ -250,7 +290,8 @@ async fn run_h3_server(endpoint: quinn::Endpoint) {
                                 .header("content-type", "application/json")
                                 .header("server", "nhttp3-showcase")
                                 .header("access-control-allow-origin", "*")
-                                .body(()).unwrap();
+                                .body(())
+                                .unwrap();
                             let _ = stream.send_response(resp).await;
                             let _ = stream.send_data(Bytes::from(body)).await;
                             let _ = stream.finish().await;

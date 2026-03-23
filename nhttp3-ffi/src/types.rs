@@ -12,12 +12,8 @@ pub struct FutureHandle {
 
 /// Callback type for async operation completion.
 /// Called from the tokio runtime thread — implementations must be thread-safe.
-pub type CompletionCallback = extern "C" fn(
-    context: *mut std::ffi::c_void,
-    result: i32,
-    data: *const u8,
-    data_len: usize,
-);
+pub type CompletionCallback =
+    extern "C" fn(context: *mut std::ffi::c_void, result: i32, data: *const u8, data_len: usize);
 
 #[cfg(test)]
 mod tests {

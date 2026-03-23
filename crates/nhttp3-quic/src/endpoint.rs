@@ -124,8 +124,14 @@ impl Endpoint {
             .map_err(|_| PacketError::Invalid("invalid server name".into()))?;
 
         let tls = TlsSession::new_client(tls_config.clone(), sni, vec![])?;
-        let mut conn_inner =
-            ConnectionInner::new(local_cid.clone(), remote_cid, addr, tls, self.config.clone(), true);
+        let mut conn_inner = ConnectionInner::new(
+            local_cid.clone(),
+            remote_cid,
+            addr,
+            tls,
+            self.config.clone(),
+            true,
+        );
 
         conn_inner.drive_handshake();
         let transmits = conn_inner.poll_transmit();

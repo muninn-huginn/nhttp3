@@ -37,14 +37,20 @@ impl ResetState {
     pub fn on_stop_sending(&mut self, error_code: VarInt) -> (VarInt, VarInt) {
         self.reset_sent = true;
         self.reset_error_code = Some(error_code);
-        (error_code, VarInt::try_from(self.bytes_sent).unwrap_or(VarInt::from_u32(0)))
+        (
+            error_code,
+            VarInt::try_from(self.bytes_sent).unwrap_or(VarInt::from_u32(0)),
+        )
     }
 
     /// Generates a RESET_STREAM for application-initiated reset.
     pub fn reset(&mut self, error_code: VarInt) -> (VarInt, VarInt) {
         self.reset_sent = true;
         self.reset_error_code = Some(error_code);
-        (error_code, VarInt::try_from(self.bytes_sent).unwrap_or(VarInt::from_u32(0)))
+        (
+            error_code,
+            VarInt::try_from(self.bytes_sent).unwrap_or(VarInt::from_u32(0)),
+        )
     }
 
     pub fn is_reset(&self) -> bool {

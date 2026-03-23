@@ -7,8 +7,8 @@ use crate::error::Error;
 impl H3Frame {
     /// Parses an HTTP/3 frame from the buffer.
     pub fn parse(buf: &mut Bytes) -> Result<Self, Error> {
-        let frame_type = VarInt::decode(buf)
-            .map_err(|e| Error::FrameError(format!("frame type: {e}")))?;
+        let frame_type =
+            VarInt::decode(buf).map_err(|e| Error::FrameError(format!("frame type: {e}")))?;
         let length = VarInt::decode(buf)
             .map_err(|e| Error::FrameError(format!("frame length: {e}")))?
             .value() as usize;
@@ -81,7 +81,9 @@ impl H3Frame {
             }
             H3Frame::CancelPush { push_id } => {
                 VarInt::from_u32(CANCEL_PUSH as u32).encode(buf);
-                VarInt::try_from(push_id.encoded_size() as u64).unwrap().encode(buf);
+                VarInt::try_from(push_id.encoded_size() as u64)
+                    .unwrap()
+                    .encode(buf);
                 push_id.encode(buf);
             }
             H3Frame::Settings { settings } => {
@@ -97,18 +99,24 @@ impl H3Frame {
             H3Frame::PushPromise { push_id, block } => {
                 VarInt::from_u32(PUSH_PROMISE as u32).encode(buf);
                 let pid_size = push_id.encoded_size();
-                VarInt::try_from((pid_size + block.len()) as u64).unwrap().encode(buf);
+                VarInt::try_from((pid_size + block.len()) as u64)
+                    .unwrap()
+                    .encode(buf);
                 push_id.encode(buf);
                 buf.put_slice(block);
             }
             H3Frame::GoAway { id } => {
                 VarInt::from_u32(GOAWAY as u32).encode(buf);
-                VarInt::try_from(id.encoded_size() as u64).unwrap().encode(buf);
+                VarInt::try_from(id.encoded_size() as u64)
+                    .unwrap()
+                    .encode(buf);
                 id.encode(buf);
             }
             H3Frame::MaxPushId { push_id } => {
                 VarInt::from_u32(MAX_PUSH_ID as u32).encode(buf);
-                VarInt::try_from(push_id.encoded_size() as u64).unwrap().encode(buf);
+                VarInt::try_from(push_id.encoded_size() as u64)
+                    .unwrap()
+                    .encode(buf);
                 push_id.encode(buf);
             }
             H3Frame::Unknown { frame_type, data } => {

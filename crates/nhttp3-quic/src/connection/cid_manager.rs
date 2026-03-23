@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 use nhttp3_core::ConnectionId;
+use std::collections::HashSet;
 
 /// Manages connection ID retirement (RFC 9000 §5.1.2).
 ///

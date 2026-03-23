@@ -85,10 +85,7 @@ mod tests {
     #[test]
     fn to_header_value_basic() {
         assert_eq!(Priority::default().to_header_value(), "u=3");
-        assert_eq!(
-            Priority::new(0, true).to_header_value(),
-            "u=0, i"
-        );
+        assert_eq!(Priority::new(0, true).to_header_value(), "u=0, i");
     }
 
     #[test]

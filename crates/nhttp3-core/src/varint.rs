@@ -211,8 +211,14 @@ mod tests {
         assert_eq!(VarInt::try_from(64u64).unwrap().encoded_size(), 2);
         assert_eq!(VarInt::try_from(16383u64).unwrap().encoded_size(), 2);
         assert_eq!(VarInt::try_from(16384u64).unwrap().encoded_size(), 4);
-        assert_eq!(VarInt::try_from(1_073_741_823u64).unwrap().encoded_size(), 4);
-        assert_eq!(VarInt::try_from(1_073_741_824u64).unwrap().encoded_size(), 8);
+        assert_eq!(
+            VarInt::try_from(1_073_741_823u64).unwrap().encoded_size(),
+            4
+        );
+        assert_eq!(
+            VarInt::try_from(1_073_741_824u64).unwrap().encoded_size(),
+            8
+        );
     }
 
     #[test]

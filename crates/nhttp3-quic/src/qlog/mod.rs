@@ -30,23 +30,56 @@ impl Category {
 #[derive(Debug, Clone)]
 pub enum Event {
     // Connectivity
-    ConnectionStarted { src_cid: String, dst_cid: String },
-    ConnectionStateUpdated { old: String, new: String },
-    ConnectionClosed { reason: String },
+    ConnectionStarted {
+        src_cid: String,
+        dst_cid: String,
+    },
+    ConnectionStateUpdated {
+        old: String,
+        new: String,
+    },
+    ConnectionClosed {
+        reason: String,
+    },
 
     // Transport
-    PacketSent { packet_type: String, size: usize },
-    PacketReceived { packet_type: String, size: usize },
-    FrameParsed { frame_type: String },
-    StreamStateUpdated { stream_id: u64, old: String, new: String },
+    PacketSent {
+        packet_type: String,
+        size: usize,
+    },
+    PacketReceived {
+        packet_type: String,
+        size: usize,
+    },
+    FrameParsed {
+        frame_type: String,
+    },
+    StreamStateUpdated {
+        stream_id: u64,
+        old: String,
+        new: String,
+    },
 
     // Security
-    KeyUpdated { key_type: String, generation: u64 },
+    KeyUpdated {
+        key_type: String,
+        generation: u64,
+    },
 
     // Recovery
-    PacketLost { packet_number: u64 },
-    CongestionStateUpdated { old: String, new: String, window: u64 },
-    MetricsUpdated { rtt: f64, cwnd: u64, bytes_in_flight: u64 },
+    PacketLost {
+        packet_number: u64,
+    },
+    CongestionStateUpdated {
+        old: String,
+        new: String,
+        window: u64,
+    },
+    MetricsUpdated {
+        rtt: f64,
+        cwnd: u64,
+        bytes_in_flight: u64,
+    },
 }
 
 /// QLOG trace writer.
@@ -96,48 +129,114 @@ impl QlogWriter {
         for (time_ms, category, event) in &self.events {
             let event_str = match event {
                 Event::ConnectionStarted { src_cid, dst_cid } => {
-                    format!(r#"{{"time":{},"category":"{}","type":"connection_started","data":{{"src_cid":"{}","dst_cid":"{}"}}}}"#,
-                        time_ms, category.as_str(), src_cid, dst_cid)
+                    format!(
+                        r#"{{"time":{},"category":"{}","type":"connection_started","data":{{"src_cid":"{}","dst_cid":"{}"}}}}"#,
+                        time_ms,
+                        category.as_str(),
+                        src_cid,
+                        dst_cid
+                    )
                 }
                 Event::ConnectionStateUpdated { old, new } => {
-                    format!(r#"{{"time":{},"category":"{}","type":"connection_state_updated","data":{{"old":"{}","new":"{}"}}}}"#,
-                        time_ms, category.as_str(), old, new)
+                    format!(
+                        r#"{{"time":{},"category":"{}","type":"connection_state_updated","data":{{"old":"{}","new":"{}"}}}}"#,
+                        time_ms,
+                        category.as_str(),
+                        old,
+                        new
+                    )
                 }
                 Event::ConnectionClosed { reason } => {
-                    format!(r#"{{"time":{},"category":"{}","type":"connection_closed","data":{{"reason":"{}"}}}}"#,
-                        time_ms, category.as_str(), reason)
+                    format!(
+                        r#"{{"time":{},"category":"{}","type":"connection_closed","data":{{"reason":"{}"}}}}"#,
+                        time_ms,
+                        category.as_str(),
+                        reason
+                    )
                 }
                 Event::PacketSent { packet_type, size } => {
-                    format!(r#"{{"time":{},"category":"{}","type":"packet_sent","data":{{"packet_type":"{}","size":{}}}}}"#,
-                        time_ms, category.as_str(), packet_type, size)
+                    format!(
+                        r#"{{"time":{},"category":"{}","type":"packet_sent","data":{{"packet_type":"{}","size":{}}}}}"#,
+                        time_ms,
+                        category.as_str(),
+                        packet_type,
+                        size
+                    )
                 }
                 Event::PacketReceived { packet_type, size } => {
-                    format!(r#"{{"time":{},"category":"{}","type":"packet_received","data":{{"packet_type":"{}","size":{}}}}}"#,
-                        time_ms, category.as_str(), packet_type, size)
+                    format!(
+                        r#"{{"time":{},"category":"{}","type":"packet_received","data":{{"packet_type":"{}","size":{}}}}}"#,
+                        time_ms,
+                        category.as_str(),
+                        packet_type,
+                        size
+                    )
                 }
                 Event::FrameParsed { frame_type } => {
-                    format!(r#"{{"time":{},"category":"{}","type":"frame_parsed","data":{{"frame_type":"{}"}}}}"#,
-                        time_ms, category.as_str(), frame_type)
+                    format!(
+                        r#"{{"time":{},"category":"{}","type":"frame_parsed","data":{{"frame_type":"{}"}}}}"#,
+                        time_ms,
+                        category.as_str(),
+                        frame_type
+                    )
                 }
-                Event::StreamStateUpdated { stream_id, old, new } => {
-                    format!(r#"{{"time":{},"category":"{}","type":"stream_state_updated","data":{{"stream_id":{},"old":"{}","new":"{}"}}}}"#,
-                        time_ms, category.as_str(), stream_id, old, new)
+                Event::StreamStateUpdated {
+                    stream_id,
+                    old,
+                    new,
+                } => {
+                    format!(
+                        r#"{{"time":{},"category":"{}","type":"stream_state_updated","data":{{"stream_id":{},"old":"{}","new":"{}"}}}}"#,
+                        time_ms,
+                        category.as_str(),
+                        stream_id,
+                        old,
+                        new
+                    )
                 }
-                Event::KeyUpdated { key_type, generation } => {
-                    format!(r#"{{"time":{},"category":"{}","type":"key_updated","data":{{"key_type":"{}","generation":{}}}}}"#,
-                        time_ms, category.as_str(), key_type, generation)
+                Event::KeyUpdated {
+                    key_type,
+                    generation,
+                } => {
+                    format!(
+                        r#"{{"time":{},"category":"{}","type":"key_updated","data":{{"key_type":"{}","generation":{}}}}}"#,
+                        time_ms,
+                        category.as_str(),
+                        key_type,
+                        generation
+                    )
                 }
                 Event::PacketLost { packet_number } => {
-                    format!(r#"{{"time":{},"category":"{}","type":"packet_lost","data":{{"packet_number":{}}}}}"#,
-                        time_ms, category.as_str(), packet_number)
+                    format!(
+                        r#"{{"time":{},"category":"{}","type":"packet_lost","data":{{"packet_number":{}}}}}"#,
+                        time_ms,
+                        category.as_str(),
+                        packet_number
+                    )
                 }
                 Event::CongestionStateUpdated { old, new, window } => {
-                    format!(r#"{{"time":{},"category":"{}","type":"congestion_state_updated","data":{{"old":"{}","new":"{}","window":{}}}}}"#,
-                        time_ms, category.as_str(), old, new, window)
+                    format!(
+                        r#"{{"time":{},"category":"{}","type":"congestion_state_updated","data":{{"old":"{}","new":"{}","window":{}}}}}"#,
+                        time_ms,
+                        category.as_str(),
+                        old,
+                        new,
+                        window
+                    )
                 }
-                Event::MetricsUpdated { rtt, cwnd, bytes_in_flight } => {
-                    format!(r#"{{"time":{},"category":"{}","type":"metrics_updated","data":{{"rtt":{},"cwnd":{},"bytes_in_flight":{}}}}}"#,
-                        time_ms, category.as_str(), rtt, cwnd, bytes_in_flight)
+                Event::MetricsUpdated {
+                    rtt,
+                    cwnd,
+                    bytes_in_flight,
+                } => {
+                    format!(
+                        r#"{{"time":{},"category":"{}","type":"metrics_updated","data":{{"rtt":{},"cwnd":{},"bytes_in_flight":{}}}}}"#,
+                        time_ms,
+                        category.as_str(),
+                        rtt,
+                        cwnd,
+                        bytes_in_flight
+                    )
                 }
             };
             writeln!(w, "{}", event_str)?;
@@ -159,33 +258,45 @@ mod tests {
     #[test]
     fn log_events() {
         let mut qlog = QlogWriter::new();
-        qlog.log(Category::Connectivity, Event::ConnectionStarted {
-            src_cid: "01020304".into(),
-            dst_cid: "05060708".into(),
-        });
-        qlog.log(Category::Transport, Event::PacketSent {
-            packet_type: "initial".into(),
-            size: 1200,
-        });
+        qlog.log(
+            Category::Connectivity,
+            Event::ConnectionStarted {
+                src_cid: "01020304".into(),
+                dst_cid: "05060708".into(),
+            },
+        );
+        qlog.log(
+            Category::Transport,
+            Event::PacketSent {
+                packet_type: "initial".into(),
+                size: 1200,
+            },
+        );
         assert_eq!(qlog.event_count(), 2);
     }
 
     #[test]
     fn disabled_qlog_ignores_events() {
         let mut qlog = QlogWriter::disabled();
-        qlog.log(Category::Transport, Event::PacketSent {
-            packet_type: "initial".into(),
-            size: 1200,
-        });
+        qlog.log(
+            Category::Transport,
+            Event::PacketSent {
+                packet_type: "initial".into(),
+                size: 1200,
+            },
+        );
         assert_eq!(qlog.event_count(), 0);
     }
 
     #[test]
     fn write_jsonl() {
         let mut qlog = QlogWriter::new();
-        qlog.log(Category::Connectivity, Event::ConnectionClosed {
-            reason: "idle_timeout".into(),
-        });
+        qlog.log(
+            Category::Connectivity,
+            Event::ConnectionClosed {
+                reason: "idle_timeout".into(),
+            },
+        );
         let mut buf = Vec::new();
         qlog.write_jsonl(&mut buf).unwrap();
         let output = String::from_utf8(buf).unwrap();
@@ -196,11 +307,14 @@ mod tests {
     #[test]
     fn metrics_event() {
         let mut qlog = QlogWriter::new();
-        qlog.log(Category::Recovery, Event::MetricsUpdated {
-            rtt: 50.0,
-            cwnd: 12000,
-            bytes_in_flight: 4800,
-        });
+        qlog.log(
+            Category::Recovery,
+            Event::MetricsUpdated {
+                rtt: 50.0,
+                cwnd: 12000,
+                bytes_in_flight: 4800,
+            },
+        );
         let mut buf = Vec::new();
         qlog.write_jsonl(&mut buf).unwrap();
         let output = String::from_utf8(buf).unwrap();

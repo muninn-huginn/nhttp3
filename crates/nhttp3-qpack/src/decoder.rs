@@ -50,11 +50,12 @@ impl Decoder {
                 let index = index as usize;
 
                 if is_static {
-                    let field = static_::get(index)
-                        .ok_or(DecoderError::InvalidStaticIndex(index))?;
+                    let field =
+                        static_::get(index).ok_or(DecoderError::InvalidStaticIndex(index))?;
                     headers.push(field);
                 } else {
-                    let field = self.dynamic_table
+                    let field = self
+                        .dynamic_table
                         .get_absolute(index)
                         .ok_or(DecoderError::InvalidDynamicIndex(index))?
                         .clone();
@@ -87,8 +88,8 @@ impl Decoder {
                 let _never_indexed = first & 0x10 != 0;
                 // Skip the first byte pattern bits, read name
                 let _ = buf.get(0); // consume first byte handled by decode_prefixed_int below
-                // Actually we need to handle this more carefully
-                // The name length is encoded after the pattern byte
+                                    // Actually we need to handle this more carefully
+                                    // The name length is encoded after the pattern byte
                 buf = &buf[1..]; // skip the instruction byte
                 let name = decode_string_literal(&mut buf)?;
                 let value = decode_string_literal(&mut buf)?;
@@ -233,9 +234,7 @@ mod tests {
         let enc = Encoder::new(0);
         let dec = Decoder::new(0);
 
-        let headers = vec![
-            HeaderField::new("x-request-id", "abc-123-def"),
-        ];
+        let headers = vec![HeaderField::new("x-request-id", "abc-123-def")];
         let block = enc.encode_header_block(&headers);
         let decoded = dec.decode_header_block(&block).unwrap();
 

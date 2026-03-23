@@ -54,8 +54,12 @@ impl Datagram {
     pub fn encode(&self) -> Vec<u8> {
         let mut buf = bytes::BytesMut::new();
         use bytes::BufMut;
-        VarInt::try_from(DATAGRAM_WITH_LEN).unwrap().encode(&mut buf);
-        VarInt::try_from(self.data.len() as u64).unwrap().encode(&mut buf);
+        VarInt::try_from(DATAGRAM_WITH_LEN)
+            .unwrap()
+            .encode(&mut buf);
+        VarInt::try_from(self.data.len() as u64)
+            .unwrap()
+            .encode(&mut buf);
         buf.put_slice(&self.data);
         buf.to_vec()
     }

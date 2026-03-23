@@ -13,7 +13,11 @@ pub struct SendStream {
 
 impl SendStream {
     pub fn new(stream_id: u64) -> Self {
-        Self { stream_id, buffer: Vec::new(), finished: false }
+        Self {
+            stream_id,
+            buffer: Vec::new(),
+            finished: false,
+        }
     }
 }
 
@@ -30,12 +34,18 @@ impl SendStream {
         async_bridge::spawn_and_resolve(py, async move { Ok(true) })
     }
 
-    fn reset(&mut self, _error_code: u64) { self.finished = true; }
+    fn reset(&mut self, _error_code: u64) {
+        self.finished = true;
+    }
 
     #[getter]
-    fn stream_id(&self) -> u64 { self.stream_id }
+    fn stream_id(&self) -> u64 {
+        self.stream_id
+    }
 
-    fn __repr__(&self) -> String { format!("SendStream(id={})", self.stream_id) }
+    fn __repr__(&self) -> String {
+        format!("SendStream(id={})", self.stream_id)
+    }
 }
 
 #[pyclass]
@@ -48,7 +58,11 @@ pub struct RecvStream {
 
 impl RecvStream {
     pub fn new(stream_id: u64) -> Self {
-        Self { stream_id, buffer: Vec::new(), fin: false }
+        Self {
+            stream_id,
+            buffer: Vec::new(),
+            fin: false,
+        }
     }
 }
 
@@ -64,7 +78,11 @@ impl RecvStream {
     fn stop(&mut self, _error_code: u64) {}
 
     #[getter]
-    fn stream_id(&self) -> u64 { self.stream_id }
+    fn stream_id(&self) -> u64 {
+        self.stream_id
+    }
 
-    fn __repr__(&self) -> String { format!("RecvStream(id={})", self.stream_id) }
+    fn __repr__(&self) -> String {
+        format!("RecvStream(id={})", self.stream_id)
+    }
 }

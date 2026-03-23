@@ -49,9 +49,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = format!("{}:{}", args.host, args.port).parse()?;
 
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()])?;
-    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(
-        rustls::pki_types::PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der()),
-    );
+    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(rustls::pki_types::PrivatePkcs8KeyDer::from(
+        cert.key_pair.serialize_der(),
+    ));
     let cert_der = rustls::pki_types::CertificateDer::from(cert.cert);
 
     let mut tls = rustls::ServerConfig::builder()
@@ -149,8 +149,11 @@ async fn proxy_request(
     http_client: &reqwest::Client,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let method = req.method().clone();
-    let path = req.uri().path_and_query()
-        .map(|pq| pq.as_str()).unwrap_or("/");
+    let path = req
+        .uri()
+        .path_and_query()
+        .map(|pq| pq.as_str())
+        .unwrap_or("/");
     let url = format!("{backend}{path}");
 
     // Read request body
@@ -158,7 +161,12 @@ async fn proxy_request(
     while let Some(chunk) = stream.recv_data().await? {
         use bytes::Buf;
         let mut c = chunk;
-        while c.has_remaining() { let b = c.chunk(); body_data.extend_from_slice(b); let l = b.len(); c.advance(l); }
+        while c.has_remaining() {
+            let b = c.chunk();
+            body_data.extend_from_slice(b);
+            let l = b.len();
+            c.advance(l);
+        }
     }
 
     // Forward to backend
@@ -181,14 +189,15 @@ async fn proxy_request(
     match backend_req.send().await {
         Ok(resp) => {
             let status = StatusCode::from_u16(resp.status().as_u16())?;
-            let content_type = resp.headers()
+            let content_type = resp
+                .headers()
                 .get("content-type")
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("application/octet-stream")
                 .to_string();
 
-            let is_streaming = content_type.contains("event-stream")
-                || content_type.contains("ndjson");
+            let is_streaming =
+                content_type.contains("event-stream") || content_type.contains("ndjson");
 
             let mut h3_resp = Response::builder()
                 .status(status)
@@ -212,7 +221,9 @@ async fn proxy_request(
                 let mut byte_stream = resp.bytes_stream();
                 while let Some(chunk) = byte_stream.next().await {
                     match chunk {
-                        Ok(data) => { stream.send_data(Bytes::from(data.to_vec())).await?; }
+                        Ok(data) => {
+                            stream.send_data(Bytes::from(data.to_vec())).await?;
+                        }
                         Err(_) => break,
                     }
                 }
@@ -224,7 +235,13 @@ async fn proxy_request(
         }
         Err(e) => {
             let body = format!(r#"{{"error":"backend unreachable: {e}"}}"#);
-            send_response(stream, StatusCode::BAD_GATEWAY, "application/json", body.as_bytes()).await?;
+            send_response(
+                stream,
+                StatusCode::BAD_GATEWAY,
+                "application/json",
+                body.as_bytes(),
+            )
+            .await?;
         }
     }
     Ok(())
@@ -252,22 +269,37 @@ async fn demo_request(
             while let Some(chunk) = stream.recv_data().await? {
                 use bytes::Buf;
                 let mut c = chunk;
-                while c.has_remaining() { let b = c.chunk(); body_data.extend_from_slice(b); let l = b.len(); c.advance(l); }
+                while c.has_remaining() {
+                    let b = c.chunk();
+                    body_data.extend_from_slice(b);
+                    let l = b.len();
+                    c.advance(l);
+                }
             }
             let echo = String::from_utf8_lossy(&body_data);
-            let body = format!(r#"{{"echo":"{echo}","size":{},"protocol":"h3"}}"#, body_data.len());
+            let body = format!(
+                r#"{{"echo":"{echo}","size":{},"protocol":"h3"}}"#,
+                body_data.len()
+            );
             send_response(stream, StatusCode::OK, "application/json", body.as_bytes()).await?;
         }
         "/headers" => {
-            let headers: Vec<nhttp3_qpack::HeaderField> = req.headers().iter()
+            let headers: Vec<nhttp3_qpack::HeaderField> = req
+                .headers()
+                .iter()
                 .map(|(k, v)| nhttp3_qpack::HeaderField::new(k.as_str().as_bytes(), v.as_bytes()))
                 .collect();
             let encoder = nhttp3_qpack::Encoder::new(0);
             let encoded = encoder.encode_header_block(&headers);
-            let raw: usize = headers.iter().map(|h| h.name.len() + h.value.len() + 4).sum();
+            let raw: usize = headers
+                .iter()
+                .map(|h| h.name.len() + h.value.len() + 4)
+                .sum();
             let body = format!(
                 r#"{{"count":{},"raw_bytes":{},"qpack_bytes":{},"savings":"{}%","protocol":"h3"}}"#,
-                headers.len(), raw, encoded.len(),
+                headers.len(),
+                raw,
+                encoded.len(),
                 ((1.0 - encoded.len() as f64 / raw.max(1) as f64) * 100.0) as u32,
             );
             send_response(stream, StatusCode::OK, "application/json", body.as_bytes()).await?;
@@ -288,23 +320,29 @@ async fn demo_request(
             let raw: usize = demo.iter().map(|h| h.name.len() + h.value.len()).sum();
             let body = format!(
                 r#"{{"headers":{},"raw":{},"qpack":{},"savings":"{}%","roundtrip":{}}}"#,
-                demo.len(), raw, encoded.len(),
+                demo.len(),
+                raw,
+                encoded.len(),
                 ((1.0 - encoded.len() as f64 / raw as f64) * 100.0) as u32,
                 decoded.len() == demo.len(),
             );
             send_response(stream, StatusCode::OK, "application/json", body.as_bytes()).await?;
         }
         "/stream" => {
-            let resp = Response::builder().status(StatusCode::OK)
+            let resp = Response::builder()
+                .status(StatusCode::OK)
                 .header("content-type", "text/event-stream")
-                .header("server", "nhttp3").body(())?;
+                .header("server", "nhttp3")
+                .body(())?;
             stream.send_response(resp).await?;
             for i in 0..10 {
                 let chunk = format!("data: {{\"chunk\":{i},\"protocol\":\"h3\"}}\n\n");
                 stream.send_data(Bytes::from(chunk)).await?;
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             }
-            stream.send_data(Bytes::from_static(b"data: [DONE]\n\n")).await?;
+            stream
+                .send_data(Bytes::from_static(b"data: [DONE]\n\n"))
+                .await?;
             stream.finish().await?;
             return Ok(());
         }
@@ -314,13 +352,20 @@ async fn demo_request(
                 while let Some(chunk) = stream.recv_data().await? {
                     use bytes::Buf;
                     let mut c = chunk;
-                    while c.has_remaining() { let b = c.chunk(); d.extend_from_slice(b); let l = b.len(); c.advance(l); }
+                    while c.has_remaining() {
+                        let b = c.chunk();
+                        d.extend_from_slice(b);
+                        let l = b.len();
+                        c.advance(l);
+                    }
                 }
                 d
             };
-            let resp = Response::builder().status(StatusCode::OK)
+            let resp = Response::builder()
+                .status(StatusCode::OK)
                 .header("content-type", "text/event-stream")
-                .header("server", "nhttp3").body(())?;
+                .header("server", "nhttp3")
+                .body(())?;
             stream.send_response(resp).await?;
             let tokens = ["Hello", "!", " I'm", " serving", " over", " HTTP/3", "."];
             for (i, tok) in tokens.iter().enumerate() {
@@ -332,13 +377,21 @@ async fn demo_request(
                 stream.send_data(Bytes::from(chunk)).await?;
                 tokio::time::sleep(std::time::Duration::from_millis(50)).await;
             }
-            stream.send_data(Bytes::from_static(b"data: [DONE]\n\n")).await?;
+            stream
+                .send_data(Bytes::from_static(b"data: [DONE]\n\n"))
+                .await?;
             stream.finish().await?;
             return Ok(());
         }
         _ => {
             let body = format!(r#"{{"error":"not found","path":"{path}"}}"#);
-            send_response(stream, StatusCode::NOT_FOUND, "application/json", body.as_bytes()).await?;
+            send_response(
+                stream,
+                StatusCode::NOT_FOUND,
+                "application/json",
+                body.as_bytes(),
+            )
+            .await?;
         }
     }
     Ok(())

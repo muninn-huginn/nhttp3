@@ -91,14 +91,12 @@ impl ConnectionInner {
                         0, // PN 0 for first packet
                     )
                 }
-                _ => {
-                    crate::packet::builder::build_handshake_packet(
-                        &self.remote_cid,
-                        &self.local_cid,
-                        &result.data,
-                        0,
-                    )
-                }
+                _ => crate::packet::builder::build_handshake_packet(
+                    &self.remote_cid,
+                    &self.local_cid,
+                    &result.data,
+                    0,
+                ),
             };
 
             self.outgoing.push(Transmit {
@@ -176,10 +174,37 @@ mod tests {
     #[derive(Debug)]
     struct NoCertVerifier;
     impl rustls::client::danger::ServerCertVerifier for NoCertVerifier {
-        fn verify_server_cert(&self, _: &CertificateDer<'_>, _: &[CertificateDer<'_>], _: &rustls::pki_types::ServerName<'_>, _: &[u8], _: rustls::pki_types::UnixTime) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> { Ok(rustls::client::danger::ServerCertVerified::assertion()) }
-        fn verify_tls12_signature(&self, _: &[u8], _: &CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
-        fn verify_tls13_signature(&self, _: &[u8], _: &CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
-        fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> { rustls::crypto::ring::default_provider().signature_verification_algorithms.supported_schemes() }
+        fn verify_server_cert(
+            &self,
+            _: &CertificateDer<'_>,
+            _: &[CertificateDer<'_>],
+            _: &rustls::pki_types::ServerName<'_>,
+            _: &[u8],
+            _: rustls::pki_types::UnixTime,
+        ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+            Ok(rustls::client::danger::ServerCertVerified::assertion())
+        }
+        fn verify_tls12_signature(
+            &self,
+            _: &[u8],
+            _: &CertificateDer<'_>,
+            _: &rustls::DigitallySignedStruct,
+        ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+            Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+        }
+        fn verify_tls13_signature(
+            &self,
+            _: &[u8],
+            _: &CertificateDer<'_>,
+            _: &rustls::DigitallySignedStruct,
+        ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+            Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+        }
+        fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+            rustls::crypto::ring::default_provider()
+                .signature_verification_algorithms
+                .supported_schemes()
+        }
     }
 
     fn make_client_server() -> (ConnectionInner, ConnectionInner) {
@@ -208,7 +233,14 @@ mod tests {
         let config = Config::default();
 
         (
-            ConnectionInner::new(client_cid.clone(), server_cid.clone(), addr, client_tls, config.clone(), true),
+            ConnectionInner::new(
+                client_cid.clone(),
+                server_cid.clone(),
+                addr,
+                client_tls,
+                config.clone(),
+                true,
+            ),
             ConnectionInner::new(server_cid, client_cid, addr, server_tls, config, false),
         )
     }
@@ -249,7 +281,8 @@ mod tests {
         assert!(
             client.state != ConnectionState::Initial || server.state != ConnectionState::Initial,
             "at least one side should progress: client={:?}, server={:?}",
-            client.state, server.state
+            client.state,
+            server.state
         );
     }
 }

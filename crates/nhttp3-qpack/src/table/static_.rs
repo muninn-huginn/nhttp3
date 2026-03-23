@@ -8,9 +8,9 @@ pub fn static_table() -> &'static [(usize, &'static [u8], &'static [u8])] {
 
 /// Look up a static table entry by index.
 pub fn get(index: usize) -> Option<HeaderField> {
-    STATIC_TABLE.get(index).map(|(_, name, value)| {
-        HeaderField::new(name.to_vec(), value.to_vec())
-    })
+    STATIC_TABLE
+        .get(index)
+        .map(|(_, name, value)| HeaderField::new(name.to_vec(), value.to_vec()))
 }
 
 /// Find an entry in the static table by name and optional value.
@@ -91,8 +91,16 @@ static STATIC_TABLE: [(usize, &[u8], &[u8]); 99] = [
     (54, b"content-type", b"text/plain;charset=utf-8"),
     (55, b"range", b"bytes=0-"),
     (56, b"strict-transport-security", b"max-age=31536000"),
-    (57, b"strict-transport-security", b"max-age=31536000; includesubdomains"),
-    (58, b"strict-transport-security", b"max-age=31536000; includesubdomains; preload"),
+    (
+        57,
+        b"strict-transport-security",
+        b"max-age=31536000; includesubdomains",
+    ),
+    (
+        58,
+        b"strict-transport-security",
+        b"max-age=31536000; includesubdomains; preload",
+    ),
     (59, b"vary", b"accept-encoding"),
     (60, b"vary", b"origin"),
     (61, b"x-content-type-options", b"nosniff"),
@@ -119,7 +127,11 @@ static STATIC_TABLE: [(usize, &[u8], &[u8]); 99] = [
     (82, b"access-control-request-method", b"post"),
     (83, b"alt-svc", b"clear"),
     (84, b"authorization", b""),
-    (85, b"content-security-policy", b"script-src 'none'; object-src 'none'; base-uri 'none'"),
+    (
+        85,
+        b"content-security-policy",
+        b"script-src 'none'; object-src 'none'; base-uri 'none'",
+    ),
     (86, b"early-data", b"1"),
     (87, b"expect-ct", b""),
     (88, b"forwarded", b""),

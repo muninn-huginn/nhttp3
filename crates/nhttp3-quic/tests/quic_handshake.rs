@@ -23,18 +23,28 @@ struct NoCertVerifier;
 
 impl rustls::client::danger::ServerCertVerifier for NoCertVerifier {
     fn verify_server_cert(
-        &self, _: &CertificateDer<'_>, _: &[CertificateDer<'_>],
-        _: &rustls::pki_types::ServerName<'_>, _: &[u8], _: rustls::pki_types::UnixTime,
+        &self,
+        _: &CertificateDer<'_>,
+        _: &[CertificateDer<'_>],
+        _: &rustls::pki_types::ServerName<'_>,
+        _: &[u8],
+        _: rustls::pki_types::UnixTime,
     ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
         Ok(rustls::client::danger::ServerCertVerified::assertion())
     }
     fn verify_tls12_signature(
-        &self, _: &[u8], _: &CertificateDer<'_>, _: &rustls::DigitallySignedStruct,
+        &self,
+        _: &[u8],
+        _: &CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
     ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
         Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
     }
     fn verify_tls13_signature(
-        &self, _: &[u8], _: &CertificateDer<'_>, _: &rustls::DigitallySignedStruct,
+        &self,
+        _: &[u8],
+        _: &CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
     ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
         Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
     }
@@ -78,14 +88,9 @@ fn tls_handshake_produces_keys() {
     tp.encode(&mut tp_buf);
 
     let server_name: ServerName<'static> = "localhost".try_into().unwrap();
-    let mut client = TlsSession::new_client(
-        Arc::new(client_config),
-        server_name,
-        tp_buf.to_vec(),
-    )
-    .unwrap();
-    let mut server =
-        TlsSession::new_server(Arc::new(server_config), tp_buf.to_vec()).unwrap();
+    let mut client =
+        TlsSession::new_client(Arc::new(client_config), server_name, tp_buf.to_vec()).unwrap();
+    let mut server = TlsSession::new_server(Arc::new(server_config), tp_buf.to_vec()).unwrap();
 
     // Drive handshake
     let ch = client.write_handshake();
@@ -93,7 +98,10 @@ fn tls_handshake_produces_keys() {
 
     server.read_handshake(&ch.data).unwrap();
     let sh = server.write_handshake();
-    assert!(sh.key_change.is_some(), "server should produce handshake keys");
+    assert!(
+        sh.key_change.is_some(),
+        "server should produce handshake keys"
+    );
 
     client.read_handshake(&sh.data).unwrap();
     let cf = client.write_handshake();
@@ -112,8 +120,22 @@ fn tls_handshake_produces_keys() {
 #[test]
 fn varint_roundtrip_exhaustive() {
     let test_values: Vec<u64> = vec![
-        0, 1, 62, 63, 64, 65, 16382, 16383, 16384, 16385, 1_073_741_822, 1_073_741_823,
-        1_073_741_824, 1_073_741_825, 4_611_686_018_427_387_902, 4_611_686_018_427_387_903,
+        0,
+        1,
+        62,
+        63,
+        64,
+        65,
+        16382,
+        16383,
+        16384,
+        16385,
+        1_073_741_822,
+        1_073_741_823,
+        1_073_741_824,
+        1_073_741_825,
+        4_611_686_018_427_387_902,
+        4_611_686_018_427_387_903,
     ];
 
     for val in test_values {
@@ -217,10 +239,7 @@ fn transport_params_roundtrip() {
     let mut bytes = buf.freeze();
     let decoded = TransportParams::decode(&mut bytes).unwrap();
 
-    assert_eq!(
-        decoded.max_idle_timeout,
-        std::time::Duration::from_secs(60)
-    );
+    assert_eq!(decoded.max_idle_timeout, std::time::Duration::from_secs(60));
     assert_eq!(decoded.initial_max_data, 5_000_000);
     assert_eq!(decoded.initial_max_streams_bidi, 200);
     assert_eq!(decoded.active_connection_id_limit, 4);
@@ -253,6 +272,9 @@ fn congestion_control_lifecycle() {
     cc.on_packet_sent(1200);
     let window_before_loss = cc.window();
     cc.on_loss(1200, now);
-    assert!(cc.window() < window_before_loss, "loss should reduce window");
+    assert!(
+        cc.window() < window_before_loss,
+        "loss should reduce window"
+    );
     assert!(cc.window() >= 2400, "window should not go below minimum");
 }

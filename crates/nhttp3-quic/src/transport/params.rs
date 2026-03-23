@@ -69,7 +69,11 @@ impl Default for TransportParams {
 impl TransportParams {
     /// Encodes transport parameters into the buffer.
     pub fn encode<B: BufMut>(&self, buf: &mut B) {
-        self.encode_varint_param(buf, MAX_IDLE_TIMEOUT, self.max_idle_timeout.as_millis() as u64);
+        self.encode_varint_param(
+            buf,
+            MAX_IDLE_TIMEOUT,
+            self.max_idle_timeout.as_millis() as u64,
+        );
         self.encode_varint_param(buf, MAX_UDP_PAYLOAD_SIZE, self.max_udp_payload_size);
         self.encode_varint_param(buf, INITIAL_MAX_DATA, self.initial_max_data);
         self.encode_varint_param(
@@ -82,7 +86,11 @@ impl TransportParams {
             INITIAL_MAX_STREAM_DATA_BIDI_REMOTE,
             self.initial_max_stream_data_bidi_remote,
         );
-        self.encode_varint_param(buf, INITIAL_MAX_STREAM_DATA_UNI, self.initial_max_stream_data_uni);
+        self.encode_varint_param(
+            buf,
+            INITIAL_MAX_STREAM_DATA_UNI,
+            self.initial_max_stream_data_uni,
+        );
         self.encode_varint_param(buf, INITIAL_MAX_STREAMS_BIDI, self.initial_max_streams_bidi);
         self.encode_varint_param(buf, INITIAL_MAX_STREAMS_UNI, self.initial_max_streams_uni);
         self.encode_varint_param(buf, ACK_DELAY_EXPONENT, self.ack_delay_exponent);
@@ -90,7 +98,9 @@ impl TransportParams {
         self.encode_varint_param(buf, ACTIVE_CID_LIMIT, self.active_connection_id_limit);
 
         if self.disable_active_migration {
-            VarInt::try_from(DISABLE_ACTIVE_MIGRATION).unwrap().encode(buf);
+            VarInt::try_from(DISABLE_ACTIVE_MIGRATION)
+                .unwrap()
+                .encode(buf);
             VarInt::from_u32(0).encode(buf);
         }
 
@@ -122,7 +132,9 @@ impl TransportParams {
     fn encode_varint_param<B: BufMut>(&self, buf: &mut B, id: u64, val: u64) {
         let v = VarInt::try_from(val).unwrap();
         VarInt::try_from(id).unwrap().encode(buf);
-        VarInt::try_from(v.encoded_size() as u64).unwrap().encode(buf);
+        VarInt::try_from(v.encoded_size() as u64)
+            .unwrap()
+            .encode(buf);
         v.encode(buf);
     }
 

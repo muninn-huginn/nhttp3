@@ -85,7 +85,10 @@ impl TlsSession {
             },
         });
 
-        HandshakeResult { data: buf, key_change }
+        HandshakeResult {
+            data: buf,
+            key_change,
+        }
     }
 
     /// Returns the peer's transport parameters (TLS-encoded).
@@ -146,18 +149,28 @@ mod tests {
 
     impl rustls::client::danger::ServerCertVerifier for NoCertVerifier {
         fn verify_server_cert(
-            &self, _: &CertificateDer<'_>, _: &[CertificateDer<'_>],
-            _: &rustls::pki_types::ServerName<'_>, _: &[u8], _: rustls::pki_types::UnixTime,
+            &self,
+            _: &CertificateDer<'_>,
+            _: &[CertificateDer<'_>],
+            _: &rustls::pki_types::ServerName<'_>,
+            _: &[u8],
+            _: rustls::pki_types::UnixTime,
         ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
             Ok(rustls::client::danger::ServerCertVerified::assertion())
         }
         fn verify_tls12_signature(
-            &self, _: &[u8], _: &CertificateDer<'_>, _: &rustls::DigitallySignedStruct,
+            &self,
+            _: &[u8],
+            _: &CertificateDer<'_>,
+            _: &rustls::DigitallySignedStruct,
         ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
             Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
         }
         fn verify_tls13_signature(
-            &self, _: &[u8], _: &CertificateDer<'_>, _: &rustls::DigitallySignedStruct,
+            &self,
+            _: &[u8],
+            _: &CertificateDer<'_>,
+            _: &rustls::DigitallySignedStruct,
         ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
             Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
         }

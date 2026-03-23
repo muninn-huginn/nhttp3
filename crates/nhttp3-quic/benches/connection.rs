@@ -14,18 +14,28 @@ fn self_signed_cert() -> (CertificateDer<'static>, PrivateKeyDer<'static>) {
 struct NoCertVerifier;
 impl rustls::client::danger::ServerCertVerifier for NoCertVerifier {
     fn verify_server_cert(
-        &self, _: &CertificateDer<'_>, _: &[CertificateDer<'_>],
-        _: &rustls::pki_types::ServerName<'_>, _: &[u8], _: rustls::pki_types::UnixTime,
+        &self,
+        _: &CertificateDer<'_>,
+        _: &[CertificateDer<'_>],
+        _: &rustls::pki_types::ServerName<'_>,
+        _: &[u8],
+        _: rustls::pki_types::UnixTime,
     ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
         Ok(rustls::client::danger::ServerCertVerified::assertion())
     }
     fn verify_tls12_signature(
-        &self, _: &[u8], _: &CertificateDer<'_>, _: &rustls::DigitallySignedStruct,
+        &self,
+        _: &[u8],
+        _: &CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
     ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
         Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
     }
     fn verify_tls13_signature(
-        &self, _: &[u8], _: &CertificateDer<'_>, _: &rustls::DigitallySignedStruct,
+        &self,
+        _: &[u8],
+        _: &CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
     ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
         Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
     }
@@ -100,7 +110,10 @@ fn qpack_compression_benchmark(c: &mut Criterion) {
     let decoder = nhttp3_qpack::Decoder::new(0);
 
     let encoded = encoder.encode_header_block(&headers);
-    let raw_size: usize = headers.iter().map(|h| h.name.len() + h.value.len() + 2).sum();
+    let raw_size: usize = headers
+        .iter()
+        .map(|h| h.name.len() + h.value.len() + 2)
+        .sum();
 
     group.bench_function("qpack_encode_8h_realistic", |b| {
         b.iter(|| {
@@ -124,5 +137,9 @@ fn qpack_compression_benchmark(c: &mut Criterion) {
     );
 }
 
-criterion_group!(benches, tls_handshake_benchmark, qpack_compression_benchmark,);
+criterion_group!(
+    benches,
+    tls_handshake_benchmark,
+    qpack_compression_benchmark,
+);
 criterion_main!(benches);

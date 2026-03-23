@@ -132,8 +132,14 @@ async fn handle_packet(
                 Err(_) => return,
             };
 
-            let mut conn_inner =
-                ConnectionInner::new(local_cid.clone(), remote_cid, addr, tls, config.clone(), false);
+            let mut conn_inner = ConnectionInner::new(
+                local_cid.clone(),
+                remote_cid,
+                addr,
+                tls,
+                config.clone(),
+                false,
+            );
 
             let _ = conn_inner.on_handshake_data(data);
             let transmits = conn_inner.poll_transmit();

@@ -26,8 +26,20 @@ pub struct H3Server {
 impl H3Server {
     #[new]
     #[pyo3(signature = (app, host="0.0.0.0".to_string(), port=4433, certfile=None, keyfile=None))]
-    fn new(app: Py<PyAny>, host: String, port: u16, certfile: Option<String>, keyfile: Option<String>) -> Self {
-        Self { app, host, port, certfile, keyfile }
+    fn new(
+        app: Py<PyAny>,
+        host: String,
+        port: u16,
+        certfile: Option<String>,
+        keyfile: Option<String>,
+    ) -> Self {
+        Self {
+            app,
+            host,
+            port,
+            certfile,
+            keyfile,
+        }
     }
 
     /// Start the server. Blocks until Ctrl+C.
@@ -40,7 +52,8 @@ impl H3Server {
         py.detach(|| {
             let rt = async_bridge::runtime();
             rt.block_on(async move {
-                run_server(app, &host, port).await
+                run_server(app, &host, port)
+                    .await
                     .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("{e}")))
             })
         })
@@ -60,9 +73,9 @@ async fn run_server(
     let addr: SocketAddr = format!("{host}:{port}").parse()?;
 
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()])?;
-    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(
-        rustls::pki_types::PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der()),
-    );
+    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(rustls::pki_types::PrivatePkcs8KeyDer::from(
+        cert.key_pair.serialize_der(),
+    ));
     let cert_der = rustls::pki_types::CertificateDer::from(cert.cert);
 
     let mut tls = rustls::ServerConfig::builder()
@@ -134,7 +147,9 @@ async fn handle_request(
     let method = req.method().to_string();
     let path = req.uri().path().to_string();
     let query = req.uri().query().unwrap_or("").to_string();
-    let headers: Vec<(Vec<u8>, Vec<u8>)> = req.headers().iter()
+    let headers: Vec<(Vec<u8>, Vec<u8>)> = req
+        .headers()
+        .iter()
         .map(|(k, v)| (k.as_str().as_bytes().to_vec(), v.as_bytes().to_vec()))
         .collect();
 
@@ -143,7 +158,12 @@ async fn handle_request(
     while let Some(chunk) = stream.recv_data().await? {
         use bytes::Buf;
         let mut c = chunk;
-        while c.has_remaining() { let b = c.chunk(); body.extend_from_slice(b); let l = b.len(); c.advance(l); }
+        while c.has_remaining() {
+            let b = c.chunk();
+            body.extend_from_slice(b);
+            let l = b.len();
+            c.advance(l);
+        }
     }
 
     // Call ASGI app on a blocking thread (Python needs GIL)
@@ -152,10 +172,13 @@ async fn handle_request(
         Python::attach(|py| -> PyResult<(u16, Vec<(Vec<u8>, Vec<u8>)>, Vec<u8>)> {
             call_asgi(py, &app_owned, &method, &path, &query, &headers, &body)
         })
-    }).await??;
+    })
+    .await??;
 
     // Send response over QUIC
-    let mut builder = http::Response::builder().status(status).header("server", "nhttp3");
+    let mut builder = http::Response::builder()
+        .status(status)
+        .header("server", "nhttp3");
     for (name, value) in &resp_headers {
         if let (Ok(n), Ok(v)) = (std::str::from_utf8(name), std::str::from_utf8(value)) {
             builder = builder.header(n, v);
@@ -197,7 +220,8 @@ fn call_asgi(
     scope.set_item("headers", py_headers)?;
 
     // Run the ASGI app via a Python helper that handles async
-    let helper = py.run(c"
+    let helper = py.run(
+        c"
 import asyncio
 
 async def _nhttp3_run_asgi(app, scope, body_bytes):
@@ -219,7 +243,10 @@ async def _nhttp3_run_asgi(app, scope, body_bytes):
     # Normalize headers to list of lists (ASGI allows tuples)
     normalized = [[bytes(h[0]), bytes(h[1])] for h in headers[0]]
     return (status[0], normalized, b''.join(body_parts))
-", None, None)?;
+",
+        None,
+        None,
+    )?;
 
     let run_asgi = py.eval(c"_nhttp3_run_asgi", None, None)?;
     let asyncio = py.import("asyncio")?;

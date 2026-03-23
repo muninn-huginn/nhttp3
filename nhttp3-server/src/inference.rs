@@ -69,14 +69,38 @@ impl MockBackend {
         Self {
             tokens_per_sec,
             vocab: vec![
-                "The".into(), " quick".into(), " brown".into(), " fox".into(),
-                " jumps".into(), " over".into(), " the".into(), " lazy".into(),
-                " dog".into(), ".".into(), " In".into(), " a".into(),
-                " world".into(), " where".into(), " HTTP/3".into(), " enables".into(),
-                " faster".into(), " communication".into(), ",".into(), " we".into(),
-                " can".into(), " stream".into(), " tokens".into(), " without".into(),
-                " head".into(), "-of".into(), "-line".into(), " blocking".into(),
-                " using".into(), " QUIC".into(), " streams".into(), "!".into(),
+                "The".into(),
+                " quick".into(),
+                " brown".into(),
+                " fox".into(),
+                " jumps".into(),
+                " over".into(),
+                " the".into(),
+                " lazy".into(),
+                " dog".into(),
+                ".".into(),
+                " In".into(),
+                " a".into(),
+                " world".into(),
+                " where".into(),
+                " HTTP/3".into(),
+                " enables".into(),
+                " faster".into(),
+                " communication".into(),
+                ",".into(),
+                " we".into(),
+                " can".into(),
+                " stream".into(),
+                " tokens".into(),
+                " without".into(),
+                " head".into(),
+                "-of".into(),
+                "-line".into(),
+                " blocking".into(),
+                " using".into(),
+                " QUIC".into(),
+                " streams".into(),
+                "!".into(),
             ],
         }
     }
@@ -124,10 +148,18 @@ struct Message {
     content: String,
 }
 
-fn default_prompt() -> String { String::new() }
-fn default_max_tokens() -> usize { 100 }
-fn default_stream() -> bool { true }
-fn default_model() -> String { "nhttp3-native".into() }
+fn default_prompt() -> String {
+    String::new()
+}
+fn default_max_tokens() -> usize {
+    100
+}
+fn default_stream() -> bool {
+    true
+}
+fn default_model() -> String {
+    "nhttp3-native".into()
+}
 
 // ─── Server ───
 
@@ -151,9 +183,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = format!("{}:{}", args.host, args.port).parse()?;
 
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()])?;
-    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(
-        rustls::pki_types::PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der()),
-    );
+    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(rustls::pki_types::PrivatePkcs8KeyDer::from(
+        cert.key_pair.serialize_der(),
+    ));
     let cert_der = rustls::pki_types::CertificateDer::from(cert.cert);
 
     let mut tls = rustls::ServerConfig::builder()
@@ -168,7 +200,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     eprintln!("=== nhttp3-inference (native QUIC) ===");
     eprintln!("Listening:    {} (HTTP/3)", addr);
-    eprintln!("Backend:      {} ({:.0} tok/s)", backend.name(), args.tokens_per_sec);
+    eprintln!(
+        "Backend:      {} ({:.0} tok/s)",
+        backend.name(),
+        args.tokens_per_sec
+    );
     eprintln!("Architecture: Token → QUIC stream → Client (1 hop, no proxy)");
     eprintln!();
     eprintln!("Endpoints:");
@@ -262,8 +298,8 @@ async fn handle_request(
                 }
             }
 
-            let request: CompletionRequest = serde_json::from_slice(&body_data)
-                .unwrap_or(CompletionRequest {
+            let request: CompletionRequest =
+                serde_json::from_slice(&body_data).unwrap_or(CompletionRequest {
                     prompt: "Hello".into(),
                     messages: vec![],
                     max_tokens: 50,
@@ -374,11 +410,17 @@ async fn stream_completion(
                         "transport": "native_quic",
                     }
                 });
-                let data = format!("data: {}\n\ndata: [DONE]\n\n", serde_json::to_string(&chunk)?);
+                let data = format!(
+                    "data: {}\n\ndata: [DONE]\n\n",
+                    serde_json::to_string(&chunk)?
+                );
                 stream.send_data(Bytes::from(data)).await?;
                 stream.finish().await?;
 
-                eprintln!("  generated {} tokens in {:?} ({:.1} tok/s, native QUIC)", token_count, elapsed, tps);
+                eprintln!(
+                    "  generated {} tokens in {:?} ({:.1} tok/s, native QUIC)",
+                    token_count, elapsed, tps
+                );
                 break;
             }
         }
@@ -410,7 +452,8 @@ async fn batch_completion(
             text.push_str(&token);
         }
         (text, state.tokens_generated, start.elapsed())
-    }).await?;
+    })
+    .await?;
 
     let tps = token_count as f64 / elapsed.as_secs_f64();
     let body = serde_json::json!({

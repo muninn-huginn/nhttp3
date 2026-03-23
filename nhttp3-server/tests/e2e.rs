@@ -10,19 +10,46 @@ use quinn::crypto::rustls::{QuicClientConfig, QuicServerConfig};
 #[derive(Debug)]
 struct NoCertVerifier;
 impl rustls::client::danger::ServerCertVerifier for NoCertVerifier {
-    fn verify_server_cert(&self, _: &rustls::pki_types::CertificateDer<'_>, _: &[rustls::pki_types::CertificateDer<'_>], _: &rustls::pki_types::ServerName<'_>, _: &[u8], _: rustls::pki_types::UnixTime) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> { Ok(rustls::client::danger::ServerCertVerified::assertion()) }
-    fn verify_tls12_signature(&self, _: &[u8], _: &rustls::pki_types::CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
-    fn verify_tls13_signature(&self, _: &[u8], _: &rustls::pki_types::CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
-    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> { rustls::crypto::ring::default_provider().signature_verification_algorithms.supported_schemes() }
+    fn verify_server_cert(
+        &self,
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &[rustls::pki_types::CertificateDer<'_>],
+        _: &rustls::pki_types::ServerName<'_>,
+        _: &[u8],
+        _: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+    fn verify_tls12_signature(
+        &self,
+        _: &[u8],
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+    fn verify_tls13_signature(
+        &self,
+        _: &[u8],
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::ring::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
 }
 
 fn setup() -> (quinn::Endpoint, SocketAddr) {
     let _ = rustls::crypto::ring::default_provider().install_default();
 
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
-    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(
-        rustls::pki_types::PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der()),
-    );
+    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(rustls::pki_types::PrivatePkcs8KeyDer::from(
+        cert.key_pair.serialize_der(),
+    ));
     let cert = rustls::pki_types::CertificateDer::from(cert.cert);
 
     let mut tls = rustls::ServerConfig::builder()
@@ -31,9 +58,8 @@ fn setup() -> (quinn::Endpoint, SocketAddr) {
         .unwrap();
     tls.alpn_protocols = vec![b"h3".to_vec()];
 
-    let server_config = quinn::ServerConfig::with_crypto(Arc::new(
-        QuicServerConfig::try_from(tls).unwrap(),
-    ));
+    let server_config =
+        quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(tls).unwrap()));
 
     let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
     let endpoint = quinn::Endpoint::server(server_config, addr).unwrap();
@@ -49,9 +75,8 @@ fn client_endpoint() -> quinn::Endpoint {
         .with_no_client_auth();
     tls.alpn_protocols = vec![b"h3".to_vec()];
 
-    let client_config = quinn::ClientConfig::new(Arc::new(
-        QuicClientConfig::try_from(tls).unwrap(),
-    ));
+    let client_config =
+        quinn::ClientConfig::new(Arc::new(QuicClientConfig::try_from(tls).unwrap()));
 
     let mut endpoint = quinn::Endpoint::client("0.0.0.0:0".parse().unwrap()).unwrap();
     endpoint.set_default_client_config(client_config);
@@ -61,14 +86,19 @@ fn client_endpoint() -> quinn::Endpoint {
 async fn serve_one(endpoint: &quinn::Endpoint) {
     let incoming = endpoint.accept().await.unwrap();
     let conn = incoming.await.unwrap();
-    let mut h3_conn = h3::server::Connection::new(h3_quinn::Connection::new(conn)).await.unwrap();
+    let mut h3_conn = h3::server::Connection::new(h3_quinn::Connection::new(conn))
+        .await
+        .unwrap();
 
     while let Ok(Some(resolver)) = h3_conn.accept().await {
         let (req, mut stream) = resolver.resolve_request().await.unwrap();
         let path = req.uri().path().to_string();
 
         let (status, body) = match path.as_str() {
-            "/" => (http::StatusCode::OK, r#"{"message":"Hello from nhttp3!","protocol":"h3"}"#.to_string()),
+            "/" => (
+                http::StatusCode::OK,
+                r#"{"message":"Hello from nhttp3!","protocol":"h3"}"#.to_string(),
+            ),
             "/health" => (http::StatusCode::OK, r#"{"status":"ok"}"#.to_string()),
             "/qpack-demo" => {
                 let headers = vec![
@@ -81,10 +111,16 @@ async fn serve_one(endpoint: &quinn::Endpoint) {
                 let encoded = encoder.encode_header_block(&headers);
                 let decoded = decoder.decode_header_block(&encoded).unwrap();
                 let raw: usize = headers.iter().map(|h| h.name.len() + h.value.len()).sum();
-                (http::StatusCode::OK, format!(
-                    r#"{{"headers":{},"raw":{},"qpack":{},"roundtrip":{}}}"#,
-                    headers.len(), raw, encoded.len(), decoded.len() == headers.len()
-                ))
+                (
+                    http::StatusCode::OK,
+                    format!(
+                        r#"{{"headers":{},"raw":{},"qpack":{},"roundtrip":{}}}"#,
+                        headers.len(),
+                        raw,
+                        encoded.len(),
+                        decoded.len() == headers.len()
+                    ),
+                )
             }
             "/echo" => {
                 // Read body
@@ -92,24 +128,39 @@ async fn serve_one(endpoint: &quinn::Endpoint) {
                 while let Some(chunk) = stream.recv_data().await.unwrap() {
                     use bytes::Buf;
                     let mut c = chunk;
-                    while c.has_remaining() { let b = c.chunk(); body_data.extend_from_slice(b); let l = b.len(); c.advance(l); }
+                    while c.has_remaining() {
+                        let b = c.chunk();
+                        body_data.extend_from_slice(b);
+                        let l = b.len();
+                        c.advance(l);
+                    }
                 }
                 let echo = String::from_utf8_lossy(&body_data);
-                (http::StatusCode::OK, format!(r#"{{"echo":"{}","size":{}}}"#, echo, body_data.len()))
+                (
+                    http::StatusCode::OK,
+                    format!(r#"{{"echo":"{}","size":{}}}"#, echo, body_data.len()),
+                )
             }
             "/stream" => {
                 let resp = http::Response::builder()
                     .status(http::StatusCode::OK)
                     .header("content-type", "text/event-stream")
-                    .body(()).unwrap();
+                    .body(())
+                    .unwrap();
                 stream.send_response(resp).await.unwrap();
                 for i in 0..5 {
-                    stream.send_data(Bytes::from(format!("data: chunk {i}\n\n"))).await.unwrap();
+                    stream
+                        .send_data(Bytes::from(format!("data: chunk {i}\n\n")))
+                        .await
+                        .unwrap();
                 }
                 stream.finish().await.unwrap();
                 continue; // skip the generic response below
             }
-            _ => (http::StatusCode::NOT_FOUND, r#"{"error":"not found"}"#.to_string()),
+            _ => (
+                http::StatusCode::NOT_FOUND,
+                r#"{"error":"not found"}"#.to_string(),
+            ),
         };
 
         let resp = http::Response::builder()
@@ -135,8 +186,9 @@ async fn real_http3_get() {
     let conn = client.connect(addr, "localhost").unwrap().await.unwrap();
     eprintln!("QUIC connected to {}", conn.remote_address());
 
-    let (mut driver, mut send_request) =
-        h3::client::new(h3_quinn::Connection::new(conn)).await.unwrap();
+    let (mut driver, mut send_request) = h3::client::new(h3_quinn::Connection::new(conn))
+        .await
+        .unwrap();
 
     tokio::spawn(async move {
         let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await;
@@ -189,8 +241,9 @@ async fn real_http3_qpack_roundtrip() {
     let client = client_endpoint();
     let conn = client.connect(addr, "localhost").unwrap().await.unwrap();
 
-    let (mut driver, mut send_request) =
-        h3::client::new(h3_quinn::Connection::new(conn)).await.unwrap();
+    let (mut driver, mut send_request) = h3::client::new(h3_quinn::Connection::new(conn))
+        .await
+        .unwrap();
     tokio::spawn(async move {
         let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await;
     });
@@ -229,7 +282,9 @@ async fn real_http3_qpack_roundtrip() {
 }
 
 // Helper to read h3 response body
-async fn read_body(stream: &mut h3::client::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>) -> String {
+async fn read_body(
+    stream: &mut h3::client::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>,
+) -> String {
     let mut body = Vec::new();
     while let Some(chunk) = stream.recv_data().await.unwrap() {
         use bytes::Buf;
@@ -251,16 +306,23 @@ async fn real_http3_post_echo() {
 
     let client = client_endpoint();
     let conn = client.connect(addr, "localhost").unwrap().await.unwrap();
-    let (mut driver, mut send_request) =
-        h3::client::new(h3_quinn::Connection::new(conn)).await.unwrap();
-    tokio::spawn(async move { let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await; });
+    let (mut driver, mut send_request) = h3::client::new(h3_quinn::Connection::new(conn))
+        .await
+        .unwrap();
+    tokio::spawn(async move {
+        let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await;
+    });
 
     let req = http::Request::builder()
         .method("POST")
         .uri(format!("https://localhost:{}/echo", addr.port()))
-        .body(()).unwrap();
+        .body(())
+        .unwrap();
     let mut stream = send_request.send_request(req).await.unwrap();
-    stream.send_data(Bytes::from(r#"{"test":true}"#)).await.unwrap();
+    stream
+        .send_data(Bytes::from(r#"{"test":true}"#))
+        .await
+        .unwrap();
     stream.finish().await.unwrap();
 
     let resp = stream.recv_response().await.unwrap();
@@ -282,19 +344,26 @@ async fn real_http3_streaming() {
 
     let client = client_endpoint();
     let conn = client.connect(addr, "localhost").unwrap().await.unwrap();
-    let (mut driver, mut send_request) =
-        h3::client::new(h3_quinn::Connection::new(conn)).await.unwrap();
-    tokio::spawn(async move { let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await; });
+    let (mut driver, mut send_request) = h3::client::new(h3_quinn::Connection::new(conn))
+        .await
+        .unwrap();
+    tokio::spawn(async move {
+        let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await;
+    });
 
     let req = http::Request::builder()
         .uri(format!("https://localhost:{}/stream", addr.port()))
-        .body(()).unwrap();
+        .body(())
+        .unwrap();
     let mut stream = send_request.send_request(req).await.unwrap();
     stream.finish().await.unwrap();
 
     let resp = stream.recv_response().await.unwrap();
     assert_eq!(resp.status(), 200);
-    assert_eq!(resp.headers().get("content-type").unwrap(), "text/event-stream");
+    assert_eq!(
+        resp.headers().get("content-type").unwrap(),
+        "text/event-stream"
+    );
 
     let body_str = read_body(&mut stream).await;
     eprintln!("Stream chunks: {body_str}");
@@ -314,13 +383,17 @@ async fn real_http3_404() {
 
     let client = client_endpoint();
     let conn = client.connect(addr, "localhost").unwrap().await.unwrap();
-    let (mut driver, mut send_request) =
-        h3::client::new(h3_quinn::Connection::new(conn)).await.unwrap();
-    tokio::spawn(async move { let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await; });
+    let (mut driver, mut send_request) = h3::client::new(h3_quinn::Connection::new(conn))
+        .await
+        .unwrap();
+    tokio::spawn(async move {
+        let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await;
+    });
 
     let req = http::Request::builder()
         .uri(format!("https://localhost:{}/nonexistent", addr.port()))
-        .body(()).unwrap();
+        .body(())
+        .unwrap();
     let mut stream = send_request.send_request(req).await.unwrap();
     stream.finish().await.unwrap();
 

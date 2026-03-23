@@ -1,7 +1,7 @@
 //! Custom async bridge: tokio ↔ Python asyncio.
 
 use pyo3::prelude::*;
-use pyo3::{Py, IntoPyObjectExt};
+use pyo3::{IntoPyObjectExt, Py};
 use std::sync::{Arc, OnceLock};
 use tokio::runtime::Runtime;
 
@@ -47,20 +47,16 @@ where
                 Ok(val) => {
                     if let Ok(set_result) = future.getattr("set_result") {
                         if let Ok(val_py) = val.into_py_any(py) {
-                            let _ = loop_.call_method1(
-                                "call_soon_threadsafe",
-                                (set_result, val_py),
-                            );
+                            let _ =
+                                loop_.call_method1("call_soon_threadsafe", (set_result, val_py));
                         }
                     }
                 }
                 Err(err) => {
                     if let Ok(set_exception) = future.getattr("set_exception") {
                         let err_obj = err.value(py);
-                        let _ = loop_.call_method1(
-                            "call_soon_threadsafe",
-                            (set_exception, err_obj),
-                        );
+                        let _ =
+                            loop_.call_method1("call_soon_threadsafe", (set_exception, err_obj));
                     }
                 }
             }

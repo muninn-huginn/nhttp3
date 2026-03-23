@@ -16,9 +16,7 @@ pub fn decode_packet_number(largest_pn: u64, truncated_pn: u64, pn_nbits: u32) -
 
     let candidate_pn = (expected_pn & !pn_mask) | truncated_pn;
 
-    if candidate_pn.wrapping_add(pn_hwin) <= expected_pn
-        && candidate_pn < (1u64 << 62) - pn_win
-    {
+    if candidate_pn.wrapping_add(pn_hwin) <= expected_pn && candidate_pn < (1u64 << 62) - pn_win {
         candidate_pn.wrapping_add(pn_win)
     } else if candidate_pn > expected_pn.wrapping_add(pn_hwin) && candidate_pn >= pn_win {
         candidate_pn.wrapping_sub(pn_win)

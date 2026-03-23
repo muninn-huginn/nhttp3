@@ -71,8 +71,7 @@ impl CongestionController for NewReno {
 
     fn on_loss(&mut self, bytes_lost: u64, _now: Instant) {
         self.bytes_in_flight = self.bytes_in_flight.saturating_sub(bytes_lost);
-        self.ssthresh =
-            (self.congestion_window / 2).max(2 * self.max_datagram_size);
+        self.ssthresh = (self.congestion_window / 2).max(2 * self.max_datagram_size);
         self.congestion_window = self.ssthresh;
     }
 

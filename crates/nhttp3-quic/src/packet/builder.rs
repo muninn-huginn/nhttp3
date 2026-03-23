@@ -6,7 +6,7 @@
 use bytes::{BufMut, BytesMut};
 use nhttp3_core::{ConnectionId, VarInt};
 
-use super::header::{QUIC_VERSION_1, LongPacketType};
+use super::header::{LongPacketType, QUIC_VERSION_1};
 use super::number::encode_packet_number;
 use crate::frame::Frame;
 
@@ -61,7 +61,9 @@ pub fn build_initial_packet(
     buf.put_slice(scid.as_bytes());
 
     // Token (varint length + data)
-    VarInt::try_from(token.len() as u64).unwrap().encode(&mut buf);
+    VarInt::try_from(token.len() as u64)
+        .unwrap()
+        .encode(&mut buf);
     if !token.is_empty() {
         buf.put_slice(token);
     }
@@ -79,7 +81,9 @@ pub fn build_initial_packet(
     let padding_needed = total_payload - payload_len_before_pad;
 
     // Length field (covers PN + payload + padding)
-    VarInt::try_from(total_payload as u64).unwrap().encode(&mut buf);
+    VarInt::try_from(total_payload as u64)
+        .unwrap()
+        .encode(&mut buf);
 
     // Packet number
     buf.put_u8(pn_byte);
@@ -129,7 +133,9 @@ pub fn build_handshake_packet(
 
     // Length
     let total_payload = pn_len + payload.len();
-    VarInt::try_from(total_payload as u64).unwrap().encode(&mut buf);
+    VarInt::try_from(total_payload as u64)
+        .unwrap()
+        .encode(&mut buf);
 
     // PN
     buf.put_u8(pn_byte);
@@ -141,11 +147,7 @@ pub fn build_handshake_packet(
 }
 
 /// Builds a QUIC 1-RTT (short header) packet containing STREAM frames.
-pub fn build_short_packet(
-    dcid: &ConnectionId,
-    frames: &[Frame],
-    packet_number: u64,
-) -> Vec<u8> {
+pub fn build_short_packet(dcid: &ConnectionId, frames: &[Frame], packet_number: u64) -> Vec<u8> {
     let mut buf = BytesMut::with_capacity(1400);
 
     let pn_len: usize = 2;
@@ -234,7 +236,9 @@ pub fn extract_crypto_data(packet: &[u8]) -> Option<Vec<u8>> {
         return None;
     }
 
-    let mut payload = Bytes::copy_from_slice(&packet[pos..std::cmp::min(pos + payload_len - pn_len, packet.len())]);
+    let mut payload = Bytes::copy_from_slice(
+        &packet[pos..std::cmp::min(pos + payload_len - pn_len, packet.len())],
+    );
     let mut crypto_data = Vec::new();
 
     while payload.has_remaining() {
@@ -269,7 +273,11 @@ mod tests {
         let crypto = b"client hello data here";
 
         let pkt = build_initial_packet(&dcid, &scid, &[], crypto, 0);
-        assert!(pkt.len() >= 1200, "Initial must be >= 1200, got {}", pkt.len());
+        assert!(
+            pkt.len() >= 1200,
+            "Initial must be >= 1200, got {}",
+            pkt.len()
+        );
         assert_eq!(pkt[0] & 0x80, 0x80); // long header
         assert_eq!((pkt[0] & 0x30) >> 4, 0x00); // Initial type
     }

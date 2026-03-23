@@ -1,7 +1,7 @@
-use wasm_bindgen::prelude::*;
-use bytes::{BytesMut, Bytes};
-use nhttp3_h3::H3Frame;
+use bytes::{Bytes, BytesMut};
 use nhttp3_core::VarInt;
+use nhttp3_h3::H3Frame;
+use wasm_bindgen::prelude::*;
 
 /// Encode an HTTP/3 HEADERS frame from a QPACK-encoded block.
 #[wasm_bindgen]

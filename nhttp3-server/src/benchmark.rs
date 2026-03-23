@@ -29,8 +29,22 @@ use tokio::net::TcpListener;
 fn generate_tokens(count: usize, delay: Duration) -> Vec<(String, Instant)> {
     let mut tokens = Vec::new();
     let vocab = [
-        "The", " quick", " brown", " fox", " jumps", " over", " the", " lazy",
-        " dog", ".", " HTTP/3", " is", " faster", " than", " HTTP/1.1", "!",
+        "The",
+        " quick",
+        " brown",
+        " fox",
+        " jumps",
+        " over",
+        " the",
+        " lazy",
+        " dog",
+        ".",
+        " HTTP/3",
+        " is",
+        " faster",
+        " than",
+        " HTTP/1.1",
+        "!",
     ];
     for i in 0..count {
         std::thread::sleep(delay);
@@ -81,25 +95,54 @@ async fn start_http11_server() -> SocketAddr {
 #[derive(Debug)]
 struct NoCertVerifier;
 impl rustls::client::danger::ServerCertVerifier for NoCertVerifier {
-    fn verify_server_cert(&self, _: &rustls::pki_types::CertificateDer<'_>, _: &[rustls::pki_types::CertificateDer<'_>], _: &rustls::pki_types::ServerName<'_>, _: &[u8], _: rustls::pki_types::UnixTime) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> { Ok(rustls::client::danger::ServerCertVerified::assertion()) }
-    fn verify_tls12_signature(&self, _: &[u8], _: &rustls::pki_types::CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
-    fn verify_tls13_signature(&self, _: &[u8], _: &rustls::pki_types::CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
-    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> { rustls::crypto::ring::default_provider().signature_verification_algorithms.supported_schemes() }
+    fn verify_server_cert(
+        &self,
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &[rustls::pki_types::CertificateDer<'_>],
+        _: &rustls::pki_types::ServerName<'_>,
+        _: &[u8],
+        _: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+    fn verify_tls12_signature(
+        &self,
+        _: &[u8],
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+    fn verify_tls13_signature(
+        &self,
+        _: &[u8],
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::ring::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
 }
 
 async fn start_h3_server() -> (quinn::Endpoint, SocketAddr) {
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
-    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(
-        rustls::pki_types::PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der()),
-    );
+    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(rustls::pki_types::PrivatePkcs8KeyDer::from(
+        cert.key_pair.serialize_der(),
+    ));
     let cert_der = rustls::pki_types::CertificateDer::from(cert.cert);
 
     let mut tls = rustls::ServerConfig::builder()
         .with_no_client_auth()
-        .with_single_cert(vec![cert_der], key).unwrap();
+        .with_single_cert(vec![cert_der], key)
+        .unwrap();
     tls.alpn_protocols = vec![b"h3".to_vec()];
 
-    let config = quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(tls).unwrap()));
+    let config =
+        quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(tls).unwrap()));
     let endpoint = quinn::Endpoint::server(config, "127.0.0.1:0".parse().unwrap()).unwrap();
     let addr = endpoint.local_addr().unwrap();
 
@@ -108,9 +151,9 @@ async fn start_h3_server() -> (quinn::Endpoint, SocketAddr) {
         while let Some(incoming) = ep.accept().await {
             tokio::spawn(async move {
                 let conn = incoming.await.unwrap();
-                let mut h3_conn = h3::server::Connection::new(
-                    h3_quinn::Connection::new(conn)
-                ).await.unwrap();
+                let mut h3_conn = h3::server::Connection::new(h3_quinn::Connection::new(conn))
+                    .await
+                    .unwrap();
 
                 while let Ok(Some(resolver)) = h3_conn.accept().await {
                     tokio::spawn(async move {
@@ -119,7 +162,8 @@ async fn start_h3_server() -> (quinn::Endpoint, SocketAddr) {
                         let resp = http::Response::builder()
                             .status(200)
                             .header("content-type", "text/event-stream")
-                            .body(()).unwrap();
+                            .body(())
+                            .unwrap();
                         stream.send_response(resp).await.unwrap();
 
                         for i in 0..50 {
@@ -133,7 +177,9 @@ async fn start_h3_server() -> (quinn::Endpoint, SocketAddr) {
                                 break;
                             }
                         }
-                        let _ = stream.send_data(Bytes::from_static(b"data: [DONE]\n\n")).await;
+                        let _ = stream
+                            .send_data(Bytes::from_static(b"data: [DONE]\n\n"))
+                            .await;
                         let _ = stream.finish().await;
                     });
                 }
@@ -179,7 +225,9 @@ async fn bench_http11(addr: SocketAddr, iterations: usize) -> BenchResult {
 
         loop {
             let n = stream.read(&mut buf[total_read..]).await.unwrap();
-            if n == 0 { break; }
+            if n == 0 {
+                break;
+            }
             total_read += n;
 
             if first_data_time.is_none() {
@@ -192,7 +240,9 @@ async fn bench_http11(addr: SocketAddr, iterations: usize) -> BenchResult {
             let content = String::from_utf8_lossy(&buf[..total_read]);
             token_count = content.matches("\"token\"").count();
 
-            if content.contains("[DONE]") { break; }
+            if content.contains("[DONE]") {
+                break;
+            }
         }
 
         let total_time = start.elapsed();
@@ -219,14 +269,18 @@ async fn bench_h3(addr: SocketAddr, iterations: usize) -> BenchResult {
         let conn = client.connect(addr, "localhost").unwrap().await.unwrap();
         let connect_time = start.elapsed();
 
-        let (mut driver, mut send_request) =
-            h3::client::new(h3_quinn::Connection::new(conn)).await.unwrap();
-        tokio::spawn(async move { let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await; });
+        let (mut driver, mut send_request) = h3::client::new(h3_quinn::Connection::new(conn))
+            .await
+            .unwrap();
+        tokio::spawn(async move {
+            let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await;
+        });
 
         let req = http::Request::builder()
             .method("POST")
             .uri(format!("https://localhost:{}/v1/completions", addr.port()))
-            .body(()).unwrap();
+            .body(())
+            .unwrap();
 
         let mut stream = send_request.send_request(req).await.unwrap();
         stream.finish().await.unwrap();
@@ -299,7 +353,11 @@ impl BenchResult {
             avg_ttft: runs.iter().map(|r| r.ttft).sum::<Duration>() / n,
             avg_total: runs.iter().map(|r| r.total_time).sum::<Duration>() / n,
             avg_tokens: runs.iter().map(|r| r.tokens).sum::<usize>() / runs.len(),
-            avg_tps: runs.iter().map(|r| r.tokens as f64 / r.total_time.as_secs_f64()).sum::<f64>() / runs.len() as f64,
+            avg_tps: runs
+                .iter()
+                .map(|r| r.tokens as f64 / r.total_time.as_secs_f64())
+                .sum::<f64>()
+                / runs.len() as f64,
             runs: runs.len(),
         }
     }
@@ -345,16 +403,26 @@ async fn main() {
     println!("╠═══════════════════╦═══════════════╦════════════════════════╣");
     println!("║ Metric            ║ HTTP/1.1 TCP  ║ HTTP/3 QUIC (nhttp3)  ║");
     println!("╠═══════════════════╬═══════════════╬════════════════════════╣");
-    println!("║ Connect           ║ {:>10.2?}  ║ {:>10.2?}             ║",
-        http11.avg_connect, h3.avg_connect);
-    println!("║ Time to 1st token ║ {:>10.2?}  ║ {:>10.2?}             ║",
-        http11.avg_ttft, h3.avg_ttft);
-    println!("║ Total (50 tok)    ║ {:>10.2?}  ║ {:>10.2?}             ║",
-        http11.avg_total, h3.avg_total);
-    println!("║ Tokens/sec        ║ {:>10.1}  ║ {:>10.1}             ║",
-        http11.avg_tps, h3.avg_tps);
-    println!("║ Tokens received   ║ {:>10}  ║ {:>10}             ║",
-        http11.avg_tokens, h3.avg_tokens);
+    println!(
+        "║ Connect           ║ {:>10.2?}  ║ {:>10.2?}             ║",
+        http11.avg_connect, h3.avg_connect
+    );
+    println!(
+        "║ Time to 1st token ║ {:>10.2?}  ║ {:>10.2?}             ║",
+        http11.avg_ttft, h3.avg_ttft
+    );
+    println!(
+        "║ Total (50 tok)    ║ {:>10.2?}  ║ {:>10.2?}             ║",
+        http11.avg_total, h3.avg_total
+    );
+    println!(
+        "║ Tokens/sec        ║ {:>10.1}  ║ {:>10.1}             ║",
+        http11.avg_tps, h3.avg_tps
+    );
+    println!(
+        "║ Tokens received   ║ {:>10}  ║ {:>10}             ║",
+        http11.avg_tokens, h3.avg_tokens
+    );
     println!("╠═══════════════════╬═══════════════╬════════════════════════╣");
 
     let connect_diff = if h3.avg_connect < http11.avg_connect {
@@ -366,9 +434,15 @@ async fn main() {
     };
 
     let ttft_diff = if h3.avg_ttft < http11.avg_ttft {
-        format!("HTTP/3 {:.1}ms faster", (http11.avg_ttft - h3.avg_ttft).as_secs_f64() * 1000.0)
+        format!(
+            "HTTP/3 {:.1}ms faster",
+            (http11.avg_ttft - h3.avg_ttft).as_secs_f64() * 1000.0
+        )
     } else {
-        format!("HTTP/1.1 {:.1}ms faster", (h3.avg_ttft - http11.avg_ttft).as_secs_f64() * 1000.0)
+        format!(
+            "HTTP/1.1 {:.1}ms faster",
+            (h3.avg_ttft - http11.avg_ttft).as_secs_f64() * 1000.0
+        )
     };
 
     println!("║ Connect winner    ║ {:<37} ║", connect_diff);
@@ -382,7 +456,13 @@ async fn main() {
     println!("║ Scenario          ║ HTTP/1.1 TCP  ║ HTTP/3 QUIC           ║");
     println!("╠═══════════════════╬═══════════════╬════════════════════════╣");
 
-    for (label, rtt_ms) in [("Local (0ms RTT)", 0.0), ("LAN (1ms RTT)", 1.0), ("Regional (20ms)", 20.0), ("Cross-cont (100ms)", 100.0), ("Mobile (200ms)", 200.0)] {
+    for (label, rtt_ms) in [
+        ("Local (0ms RTT)", 0.0),
+        ("LAN (1ms RTT)", 1.0),
+        ("Regional (20ms)", 20.0),
+        ("Cross-cont (100ms)", 100.0),
+        ("Mobile (200ms)", 200.0),
+    ] {
         // TCP: 3-way handshake (1.5 RTT) + TLS (2 RTT) = 3.5 RTT
         // QUIC: 1 RTT (handshake + TLS combined)
         let tcp_connect_ms = http11.avg_connect.as_secs_f64() * 1000.0 + rtt_ms * 3.5;
@@ -390,8 +470,13 @@ async fn main() {
         let tcp_ttft_ms = tcp_connect_ms + 10.0; // +1 token delay
         let quic_ttft_ms = quic_connect_ms + 10.0;
 
-        println!("║ {:17} ║ {:>7.1}ms     ║ {:>7.1}ms   {:>+6.1}ms    ║",
-            label, tcp_ttft_ms, quic_ttft_ms, quic_ttft_ms - tcp_ttft_ms);
+        println!(
+            "║ {:17} ║ {:>7.1}ms     ║ {:>7.1}ms   {:>+6.1}ms    ║",
+            label,
+            tcp_ttft_ms,
+            quic_ttft_ms,
+            quic_ttft_ms - tcp_ttft_ms
+        );
     }
 
     println!("╠═══════════════════╬═══════════════╬════════════════════════╣");

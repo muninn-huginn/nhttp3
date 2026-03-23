@@ -4,11 +4,7 @@ use nhttp3_qpack::HeaderField;
 use crate::error::Error;
 
 /// Converts HTTP request parts to QPACK header fields.
-pub fn request_to_fields(
-    method: &Method,
-    uri: &Uri,
-    headers: &HeaderMap,
-) -> Vec<HeaderField> {
+pub fn request_to_fields(method: &Method, uri: &Uri, headers: &HeaderMap) -> Vec<HeaderField> {
     let mut fields = Vec::new();
 
     fields.push(HeaderField::new(":method", method.as_str().as_bytes()));
@@ -18,10 +14,7 @@ pub fn request_to_fields(
     ));
     fields.push(HeaderField::new(
         ":authority",
-        uri.authority()
-            .map(|a| a.as_str())
-            .unwrap_or("")
-            .as_bytes(),
+        uri.authority().map(|a| a.as_str()).unwrap_or("").as_bytes(),
     ));
     fields.push(HeaderField::new(
         ":path",
@@ -32,10 +25,7 @@ pub fn request_to_fields(
     ));
 
     for (name, value) in headers.iter() {
-        fields.push(HeaderField::new(
-            name.as_str().as_bytes(),
-            value.as_bytes(),
-        ));
+        fields.push(HeaderField::new(name.as_str().as_bytes(), value.as_bytes()));
     }
 
     fields
@@ -45,16 +35,10 @@ pub fn request_to_fields(
 pub fn response_to_fields(status: StatusCode, headers: &HeaderMap) -> Vec<HeaderField> {
     let mut fields = Vec::new();
 
-    fields.push(HeaderField::new(
-        ":status",
-        status.as_str().as_bytes(),
-    ));
+    fields.push(HeaderField::new(":status", status.as_str().as_bytes()));
 
     for (name, value) in headers.iter() {
-        fields.push(HeaderField::new(
-            name.as_str().as_bytes(),
-            value.as_bytes(),
-        ));
+        fields.push(HeaderField::new(name.as_str().as_bytes(), value.as_bytes()));
     }
 
     fields
@@ -64,11 +48,9 @@ pub fn response_to_fields(status: StatusCode, headers: &HeaderMap) -> Vec<Header
 pub fn extract_status(fields: &[HeaderField]) -> Result<StatusCode, Error> {
     for field in fields {
         if field.name == b":status" {
-            let status_str = std::str::from_utf8(&field.value)
-                .map_err(|_| Error::MalformedHeaders)?;
-            let code: u16 = status_str
-                .parse()
-                .map_err(|_| Error::MalformedHeaders)?;
+            let status_str =
+                std::str::from_utf8(&field.value).map_err(|_| Error::MalformedHeaders)?;
+            let code: u16 = status_str.parse().map_err(|_| Error::MalformedHeaders)?;
             return StatusCode::from_u16(code).map_err(|_| Error::MalformedHeaders);
         }
     }
@@ -82,10 +64,8 @@ pub fn fields_to_headermap(fields: &[HeaderField]) -> Result<HeaderMap, Error> {
         if field.name.starts_with(b":") {
             continue; // skip pseudo-headers
         }
-        let name = HeaderName::from_bytes(&field.name)
-            .map_err(|_| Error::MalformedHeaders)?;
-        let value = HeaderValue::from_bytes(&field.value)
-            .map_err(|_| Error::MalformedHeaders)?;
+        let name = HeaderName::from_bytes(&field.name).map_err(|_| Error::MalformedHeaders)?;
+        let value = HeaderValue::from_bytes(&field.value).map_err(|_| Error::MalformedHeaders)?;
         map.insert(name, value);
     }
     Ok(map)
@@ -101,13 +81,20 @@ pub fn extract_request_pseudo(fields: &[HeaderField]) -> Result<(Method, Uri), E
     for field in fields {
         match field.name.as_slice() {
             b":method" => {
-                method = Some(
-                    Method::from_bytes(&field.value).map_err(|_| Error::MalformedHeaders)?,
-                );
+                method =
+                    Some(Method::from_bytes(&field.value).map_err(|_| Error::MalformedHeaders)?);
             }
-            b":scheme" => scheme = Some(std::str::from_utf8(&field.value).map_err(|_| Error::MalformedHeaders)?),
-            b":authority" => authority = Some(std::str::from_utf8(&field.value).map_err(|_| Error::MalformedHeaders)?),
-            b":path" => path = Some(std::str::from_utf8(&field.value).map_err(|_| Error::MalformedHeaders)?),
+            b":scheme" => {
+                scheme =
+                    Some(std::str::from_utf8(&field.value).map_err(|_| Error::MalformedHeaders)?)
+            }
+            b":authority" => {
+                authority =
+                    Some(std::str::from_utf8(&field.value).map_err(|_| Error::MalformedHeaders)?)
+            }
+            b":path" => {
+                path = Some(std::str::from_utf8(&field.value).map_err(|_| Error::MalformedHeaders)?)
+            }
             _ => {}
         }
     }
@@ -141,10 +128,18 @@ mod tests {
             &headers,
         );
 
-        assert!(fields.iter().any(|f| f.name == b":method" && f.value == b"GET"));
-        assert!(fields.iter().any(|f| f.name == b":path" && f.value == b"/path"));
-        assert!(fields.iter().any(|f| f.name == b":scheme" && f.value == b"https"));
-        assert!(fields.iter().any(|f| f.name == b"content-type" && f.value == b"text/plain"));
+        assert!(fields
+            .iter()
+            .any(|f| f.name == b":method" && f.value == b"GET"));
+        assert!(fields
+            .iter()
+            .any(|f| f.name == b":path" && f.value == b"/path"));
+        assert!(fields
+            .iter()
+            .any(|f| f.name == b":scheme" && f.value == b"https"));
+        assert!(fields
+            .iter()
+            .any(|f| f.name == b"content-type" && f.value == b"text/plain"));
     }
 
     #[test]
@@ -154,8 +149,12 @@ mod tests {
 
         let fields = response_to_fields(StatusCode::OK, &headers);
 
-        assert!(fields.iter().any(|f| f.name == b":status" && f.value == b"200"));
-        assert!(fields.iter().any(|f| f.name == b"content-type" && f.value == b"text/html"));
+        assert!(fields
+            .iter()
+            .any(|f| f.name == b":status" && f.value == b"200"));
+        assert!(fields
+            .iter()
+            .any(|f| f.name == b"content-type" && f.value == b"text/html"));
     }
 
     #[test]

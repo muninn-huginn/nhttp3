@@ -15,10 +15,37 @@ use quinn::crypto::rustls::QuicClientConfig;
 #[derive(Debug)]
 struct NoCertVerifier;
 impl rustls::client::danger::ServerCertVerifier for NoCertVerifier {
-    fn verify_server_cert(&self, _: &rustls::pki_types::CertificateDer<'_>, _: &[rustls::pki_types::CertificateDer<'_>], _: &rustls::pki_types::ServerName<'_>, _: &[u8], _: rustls::pki_types::UnixTime) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> { Ok(rustls::client::danger::ServerCertVerified::assertion()) }
-    fn verify_tls12_signature(&self, _: &[u8], _: &rustls::pki_types::CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
-    fn verify_tls13_signature(&self, _: &[u8], _: &rustls::pki_types::CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
-    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> { rustls::crypto::ring::default_provider().signature_verification_algorithms.supported_schemes() }
+    fn verify_server_cert(
+        &self,
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &[rustls::pki_types::CertificateDer<'_>],
+        _: &rustls::pki_types::ServerName<'_>,
+        _: &[u8],
+        _: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+    fn verify_tls12_signature(
+        &self,
+        _: &[u8],
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+    fn verify_tls13_signature(
+        &self,
+        _: &[u8],
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::ring::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
 }
 
 #[tokio::main]
@@ -35,11 +62,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
-            "-X" => { i += 1; method = args[i].clone(); }
-            "-d" => { i += 1; body = Some(args[i].clone()); }
-            "-v" => { verbose = true; }
-            s if s.starts_with("http") => { url = s.to_string(); }
-            _ => { url = args[i].clone(); }
+            "-X" => {
+                i += 1;
+                method = args[i].clone();
+            }
+            "-d" => {
+                i += 1;
+                body = Some(args[i].clone());
+            }
+            "-v" => {
+                verbose = true;
+            }
+            s if s.starts_with("http") => {
+                url = s.to_string();
+            }
+            _ => {
+                url = args[i].clone();
+            }
         }
         i += 1;
     }
@@ -72,14 +111,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_no_client_auth();
     tls.alpn_protocols = vec![b"h3".to_vec()];
 
-    let client_config = quinn::ClientConfig::new(Arc::new(
-        QuicClientConfig::try_from(tls)?,
-    ));
+    let client_config = quinn::ClientConfig::new(Arc::new(QuicClientConfig::try_from(tls)?));
 
     let mut endpoint = quinn::Endpoint::client("0.0.0.0:0".parse()?)?;
     endpoint.set_default_client_config(client_config);
 
-    let addr: SocketAddr = format!("{}:{}", host, port).parse()
+    let addr: SocketAddr = format!("{}:{}", host, port)
+        .parse()
         .unwrap_or_else(|_| format!("127.0.0.1:{}", port).parse().unwrap());
 
     let start = Instant::now();
@@ -94,8 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // H3 connection
-    let (mut driver, mut send_request) =
-        h3::client::new(h3_quinn::Connection::new(conn)).await?;
+    let (mut driver, mut send_request) = h3::client::new(h3_quinn::Connection::new(conn)).await?;
 
     tokio::spawn(async move {
         let _ = std::future::poll_fn(|cx| driver.poll_close(cx)).await;
@@ -124,7 +161,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut stream = send_request.send_request(req).await?;
 
     if let Some(body_data) = &body {
-        stream.send_data(Bytes::from(body_data.clone().into_bytes())).await?;
+        stream
+            .send_data(Bytes::from(body_data.clone().into_bytes()))
+            .await?;
     }
     stream.finish().await?;
 

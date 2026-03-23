@@ -25,7 +25,9 @@ pub fn encode_headers(headers: Vec<Vec<String>>) -> Buffer {
                     pair[0].as_bytes().to_vec(),
                     pair[1].as_bytes().to_vec(),
                 ))
-            } else { None }
+            } else {
+                None
+            }
         })
         .collect();
     let encoder = nhttp3_qpack::Encoder::new(0);
@@ -35,12 +37,18 @@ pub fn encode_headers(headers: Vec<Vec<String>>) -> Buffer {
 #[napi]
 pub fn decode_headers(block: Buffer) -> Result<Vec<Vec<String>>> {
     let decoder = nhttp3_qpack::Decoder::new(0);
-    let fields = decoder.decode_header_block(&block)
+    let fields = decoder
+        .decode_header_block(&block)
         .map_err(|e| Error::from_reason(format!("QPACK: {e}")))?;
-    Ok(fields.iter().map(|f| vec![
-        String::from_utf8_lossy(&f.name).to_string(),
-        String::from_utf8_lossy(&f.value).to_string(),
-    ]).collect())
+    Ok(fields
+        .iter()
+        .map(|f| {
+            vec![
+                String::from_utf8_lossy(&f.name).to_string(),
+                String::from_utf8_lossy(&f.value).to_string(),
+            ]
+        })
+        .collect())
 }
 
 #[napi(object)]
@@ -64,15 +72,21 @@ pub struct H3Response {
 pub fn serve(env: Env, port: u32, handler: napi::JsFunction) -> Result<()> {
     let _ = rustls::crypto::ring::default_provider().install_default();
 
-    let tsfn = handler.create_threadsafe_function(0,
+    let tsfn = handler.create_threadsafe_function(
+        0,
         |ctx: napi::threadsafe_function::ThreadSafeCallContext<H3Request>| {
             let mut obj = ctx.env.create_object()?;
             obj.set("method", ctx.value.method)?;
             obj.set("path", ctx.value.path)?;
             obj.set("headers", ctx.value.headers)?;
-            obj.set("body", ctx.env.create_buffer_with_data(ctx.value.body.to_vec())?.into_raw())?;
+            obj.set(
+                "body",
+                ctx.env
+                    .create_buffer_with_data(ctx.value.body.to_vec())?
+                    .into_raw(),
+            )?;
             Ok(vec![obj])
-        }
+        },
     )?;
 
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -80,9 +94,8 @@ pub fn serve(env: Env, port: u32, handler: napi::JsFunction) -> Result<()> {
         .build()
         .map_err(|e| Error::from_reason(format!("tokio: {e}")))?;
 
-    rt.block_on(async move {
-        run_h3_server(port as u16, tsfn).await
-    }).map_err(|e| Error::from_reason(format!("{e}")))
+    rt.block_on(async move { run_h3_server(port as u16, tsfn).await })
+        .map_err(|e| Error::from_reason(format!("{e}")))
 }
 
 async fn run_h3_server(
@@ -92,9 +105,9 @@ async fn run_h3_server(
     let addr: SocketAddr = format!("0.0.0.0:{port}").parse()?;
 
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()])?;
-    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(
-        rustls::pki_types::PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der()),
-    );
+    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(rustls::pki_types::PrivatePkcs8KeyDer::from(
+        cert.key_pair.serialize_der(),
+    ));
     let cert_der = rustls::pki_types::CertificateDer::from(cert.cert);
 
     let mut tls = rustls::ServerConfig::builder()
@@ -111,10 +124,11 @@ async fn run_h3_server(
         let tsfn = tsfn.clone();
         tokio::spawn(async move {
             if let Ok(conn) = incoming.await {
-                let mut h3 = match h3::server::Connection::new(h3_quinn::Connection::new(conn)).await {
-                    Ok(c) => c,
-                    Err(_) => return,
-                };
+                let mut h3 =
+                    match h3::server::Connection::new(h3_quinn::Connection::new(conn)).await {
+                        Ok(c) => c,
+                        Err(_) => return,
+                    };
 
                 while let Ok(Some(resolver)) = h3.accept().await {
                     let tsfn = tsfn.clone();
@@ -122,18 +136,34 @@ async fn run_h3_server(
                         if let Ok((req, mut stream)) = resolver.resolve_request().await {
                             let method = req.method().to_string();
                             let path = req.uri().path().to_string();
-                            let headers: Vec<Vec<String>> = req.headers().iter()
-                                .map(|(k, v)| vec![k.to_string(), v.to_str().unwrap_or("").to_string()])
+                            let headers: Vec<Vec<String>> = req
+                                .headers()
+                                .iter()
+                                .map(|(k, v)| {
+                                    vec![k.to_string(), v.to_str().unwrap_or("").to_string()]
+                                })
                                 .collect();
 
                             let mut body = Vec::new();
-                            while let Some(Ok(chunk)) = stream.recv_data().await.ok().flatten().map(Ok::<_, ()>) {
+                            while let Some(Ok(chunk)) =
+                                stream.recv_data().await.ok().flatten().map(Ok::<_, ()>)
+                            {
                                 use bytes::Buf;
                                 let mut c = chunk;
-                                while c.has_remaining() { let b = c.chunk(); body.extend_from_slice(b); let l = b.len(); c.advance(l); }
+                                while c.has_remaining() {
+                                    let b = c.chunk();
+                                    body.extend_from_slice(b);
+                                    let l = b.len();
+                                    c.advance(l);
+                                }
                             }
 
-                            let h3_req = H3Request { method, path, headers, body: Buffer::from(body) };
+                            let h3_req = H3Request {
+                                method,
+                                path,
+                                headers,
+                                body: Buffer::from(body),
+                            };
 
                             // Call JS handler via threadsafe function
                             // For now, just send a default response since the callback return is complex
@@ -141,13 +171,18 @@ async fn run_h3_server(
                                 .status(200)
                                 .header("content-type", "application/json")
                                 .header("server", "nhttp3-node")
-                                .body(()).unwrap();
+                                .body(())
+                                .unwrap();
                             let _ = stream.send_response(resp).await;
 
                             // Try to call the JS handler
-                            let status = tsfn.call(Ok(h3_req), napi::threadsafe_function::ThreadsafeFunctionCallMode::Blocking);
+                            let status = tsfn.call(
+                                Ok(h3_req),
+                                napi::threadsafe_function::ThreadsafeFunctionCallMode::Blocking,
+                            );
 
-                            let body_str = r#"{"message":"Hello from Node.js native HTTP/3!","proxy":false}"#;
+                            let body_str =
+                                r#"{"message":"Hello from Node.js native HTTP/3!","proxy":false}"#;
                             let _ = stream.send_data(Bytes::from(body_str)).await;
                             let _ = stream.finish().await;
                         }
@@ -164,10 +199,37 @@ async fn run_h3_server(
 #[derive(Debug)]
 struct NoCertVerifier;
 impl rustls::client::danger::ServerCertVerifier for NoCertVerifier {
-    fn verify_server_cert(&self, _: &rustls::pki_types::CertificateDer<'_>, _: &[rustls::pki_types::CertificateDer<'_>], _: &rustls::pki_types::ServerName<'_>, _: &[u8], _: rustls::pki_types::UnixTime) -> std::result::Result<rustls::client::danger::ServerCertVerified, rustls::Error> { Ok(rustls::client::danger::ServerCertVerified::assertion()) }
-    fn verify_tls12_signature(&self, _: &[u8], _: &rustls::pki_types::CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> std::result::Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
-    fn verify_tls13_signature(&self, _: &[u8], _: &rustls::pki_types::CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> std::result::Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
-    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> { rustls::crypto::ring::default_provider().signature_verification_algorithms.supported_schemes() }
+    fn verify_server_cert(
+        &self,
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &[rustls::pki_types::CertificateDer<'_>],
+        _: &rustls::pki_types::ServerName<'_>,
+        _: &[u8],
+        _: rustls::pki_types::UnixTime,
+    ) -> std::result::Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+    fn verify_tls12_signature(
+        &self,
+        _: &[u8],
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
+    ) -> std::result::Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+    fn verify_tls13_signature(
+        &self,
+        _: &[u8],
+        _: &rustls::pki_types::CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
+    ) -> std::result::Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::ring::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
 }
 
 /// Response from an HTTP/3 fetch.
@@ -204,15 +266,24 @@ pub struct FetchOptions {
 pub async fn h3fetch(url: String, options: Option<FetchOptions>) -> Result<FetchResponse> {
     let _ = rustls::crypto::ring::default_provider().install_default();
 
-    let opts = options.unwrap_or(FetchOptions { method: None, body: None, headers: None });
+    let opts = options.unwrap_or(FetchOptions {
+        method: None,
+        body: None,
+        headers: None,
+    });
     let method = opts.method.unwrap_or_else(|| "GET".to_string());
 
     // Parse URL
-    let parsed: http::Uri = url.parse()
+    let parsed: http::Uri = url
+        .parse()
         .map_err(|e| Error::from_reason(format!("invalid URL: {e}")))?;
     let host = parsed.host().unwrap_or("localhost").to_string();
     let port = parsed.port_u16().unwrap_or(4433);
-    let path = parsed.path_and_query().map(|p| p.as_str()).unwrap_or("/").to_string();
+    let path = parsed
+        .path_and_query()
+        .map(|p| p.as_str())
+        .unwrap_or("/")
+        .to_string();
 
     let start = std::time::Instant::now();
 
@@ -224,19 +295,20 @@ pub async fn h3fetch(url: String, options: Option<FetchOptions>) -> Result<Fetch
     tls.alpn_protocols = vec![b"h3".to_vec()];
 
     let client_config = quinn::ClientConfig::new(Arc::new(
-        QuicClientConfig::try_from(tls)
-            .map_err(|e| Error::from_reason(format!("TLS: {e}")))?
+        QuicClientConfig::try_from(tls).map_err(|e| Error::from_reason(format!("TLS: {e}")))?,
     ));
 
     let mut endpoint = quinn::Endpoint::client("0.0.0.0:0".parse().unwrap())
         .map_err(|e| Error::from_reason(format!("endpoint: {e}")))?;
     endpoint.set_default_client_config(client_config);
 
-    let addr: SocketAddr = format!("{}:{}", host, port).parse()
+    let addr: SocketAddr = format!("{}:{}", host, port)
+        .parse()
         .unwrap_or_else(|_| format!("127.0.0.1:{}", port).parse().unwrap());
 
     // QUIC connect
-    let conn = endpoint.connect(addr, &host)
+    let conn = endpoint
+        .connect(addr, &host)
         .map_err(|e| Error::from_reason(format!("connect: {e}")))?
         .await
         .map_err(|e| Error::from_reason(format!("QUIC handshake: {e}")))?;
@@ -269,32 +341,46 @@ pub async fn h3fetch(url: String, options: Option<FetchOptions>) -> Result<Fetch
         req_builder = req_builder.header("content-type", "application/json");
     }
 
-    let req = req_builder.body(())
+    let req = req_builder
+        .body(())
         .map_err(|e| Error::from_reason(format!("request: {e}")))?;
 
     // Send
-    let mut stream = send_request.send_request(req).await
+    let mut stream = send_request
+        .send_request(req)
+        .await
         .map_err(|e| Error::from_reason(format!("send: {e}")))?;
 
     if let Some(body) = opts.body {
-        stream.send_data(Bytes::from(body.into_bytes())).await
+        stream
+            .send_data(Bytes::from(body.into_bytes()))
+            .await
             .map_err(|e| Error::from_reason(format!("send body: {e}")))?;
     }
-    stream.finish().await
+    stream
+        .finish()
+        .await
         .map_err(|e| Error::from_reason(format!("finish: {e}")))?;
 
     // Receive
-    let resp = stream.recv_response().await
+    let resp = stream
+        .recv_response()
+        .await
         .map_err(|e| Error::from_reason(format!("recv: {e}")))?;
 
     let status = resp.status().as_u16() as u32;
-    let headers: Vec<Vec<String>> = resp.headers().iter()
+    let headers: Vec<Vec<String>> = resp
+        .headers()
+        .iter()
         .map(|(k, v)| vec![k.to_string(), v.to_str().unwrap_or("").to_string()])
         .collect();
 
     let mut body_bytes = Vec::new();
-    while let Some(chunk) = stream.recv_data().await
-        .map_err(|e| Error::from_reason(format!("recv data: {e}")))? {
+    while let Some(chunk) = stream
+        .recv_data()
+        .await
+        .map_err(|e| Error::from_reason(format!("recv data: {e}")))?
+    {
         use bytes::Buf;
         let mut c = chunk;
         while c.has_remaining() {

@@ -3,10 +3,10 @@
 //! Measures TLS handshake latency and header compression for both protocols.
 //! Results are saved to benches/results.json for the web dashboard.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use std::sync::Arc;
-use std::io::Write;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use std::io::Write;
+use std::sync::Arc;
 
 fn self_signed_cert() -> (CertificateDer<'static>, PrivateKeyDer<'static>) {
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
@@ -18,10 +18,37 @@ fn self_signed_cert() -> (CertificateDer<'static>, PrivateKeyDer<'static>) {
 #[derive(Debug)]
 struct NoCertVerifier;
 impl rustls::client::danger::ServerCertVerifier for NoCertVerifier {
-    fn verify_server_cert(&self, _: &CertificateDer<'_>, _: &[CertificateDer<'_>], _: &rustls::pki_types::ServerName<'_>, _: &[u8], _: rustls::pki_types::UnixTime) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> { Ok(rustls::client::danger::ServerCertVerified::assertion()) }
-    fn verify_tls12_signature(&self, _: &[u8], _: &CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
-    fn verify_tls13_signature(&self, _: &[u8], _: &CertificateDer<'_>, _: &rustls::DigitallySignedStruct) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> { Ok(rustls::client::danger::HandshakeSignatureValid::assertion()) }
-    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> { rustls::crypto::ring::default_provider().signature_verification_algorithms.supported_schemes() }
+    fn verify_server_cert(
+        &self,
+        _: &CertificateDer<'_>,
+        _: &[CertificateDer<'_>],
+        _: &rustls::pki_types::ServerName<'_>,
+        _: &[u8],
+        _: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+    fn verify_tls12_signature(
+        &self,
+        _: &[u8],
+        _: &CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+    fn verify_tls13_signature(
+        &self,
+        _: &[u8],
+        _: &CertificateDer<'_>,
+        _: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::ring::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
 }
 
 fn handshake_comparison(c: &mut Criterion) {
@@ -133,14 +160,20 @@ fn header_compression_comparison(c: &mut Criterion) {
         (":scheme", "https"),
         (":authority", "api.example.com"),
         ("accept", "application/json"),
-        ("authorization", "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0"),
+        (
+            "authorization",
+            "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0",
+        ),
         ("content-type", "application/json"),
         ("user-agent", "nhttp3-bench/0.1"),
         ("accept-encoding", "gzip, deflate, br"),
         ("cache-control", "no-cache"),
     ];
 
-    let raw_size: usize = headers_data.iter().map(|(k, v)| k.len() + v.len() + 4).sum();
+    let raw_size: usize = headers_data
+        .iter()
+        .map(|(k, v)| k.len() + v.len() + 4)
+        .sum();
 
     // QPACK (HTTP/3)
     let qpack_headers: Vec<nhttp3_qpack::HeaderField> = headers_data
@@ -160,7 +193,11 @@ fn header_compression_comparison(c: &mut Criterion) {
 
     group.bench_function("qpack_decode_10h", |b| {
         b.iter(|| {
-            black_box(qpack_decoder.decode_header_block(black_box(&qpack_encoded)).unwrap());
+            black_box(
+                qpack_decoder
+                    .decode_header_block(black_box(&qpack_encoded))
+                    .unwrap(),
+            );
         });
     });
 
@@ -189,8 +226,15 @@ fn header_compression_comparison(c: &mut Criterion) {
     // Print comparison summary
     println!("\n  === Header Compression Comparison ===");
     println!("  Raw headers:    {} bytes", raw_size);
-    println!("  QPACK encoded:  {} bytes ({:.0}% of raw)", qpack_encoded.len(), (qpack_encoded.len() as f64 / raw_size as f64) * 100.0);
-    println!("  QPACK savings:  {:.0}%", (1.0 - qpack_encoded.len() as f64 / raw_size as f64) * 100.0);
+    println!(
+        "  QPACK encoded:  {} bytes ({:.0}% of raw)",
+        qpack_encoded.len(),
+        (qpack_encoded.len() as f64 / raw_size as f64) * 100.0
+    );
+    println!(
+        "  QPACK savings:  {:.0}%",
+        (1.0 - qpack_encoded.len() as f64 / raw_size as f64) * 100.0
+    );
 
     // Write results JSON for web dashboard
     let results = serde_json::json!({

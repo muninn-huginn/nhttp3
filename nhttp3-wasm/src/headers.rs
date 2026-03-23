@@ -1,5 +1,5 @@
+use nhttp3_qpack::{Decoder, Encoder, HeaderField};
 use wasm_bindgen::prelude::*;
-use nhttp3_qpack::{Encoder, Decoder, HeaderField};
 
 /// Encodes HTTP request headers into a QPACK header block.
 ///
@@ -36,12 +36,8 @@ pub fn decode_headers(block: &[u8]) -> Result<JsValue, JsValue> {
     let arr = js_sys::Array::new();
     for field in fields {
         let pair = js_sys::Array::new();
-        pair.push(&JsValue::from_str(
-            &String::from_utf8_lossy(&field.name),
-        ));
-        pair.push(&JsValue::from_str(
-            &String::from_utf8_lossy(&field.value),
-        ));
+        pair.push(&JsValue::from_str(&String::from_utf8_lossy(&field.name)));
+        pair.push(&JsValue::from_str(&String::from_utf8_lossy(&field.value)));
         arr.push(&pair);
     }
 
