@@ -1,41 +1,71 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Python Client — nhttp3 Docs</title><link rel="stylesheet" href="style.css"></head><body>
-<nav class="sidebar"><a href="../index.html" class="sidebar-logo">nhttp3</a><div class="sidebar-section">Getting Started</div><a href="getting-started.html">Installation</a><a href="quickstart.html">Quick Start</a><a href="concepts.html">Core Concepts</a><div class="sidebar-section">Server Guides</div><a href="fastapi.html">FastAPI</a><a href="express.html">Node.js (native)</a><div class="sidebar-section">Client Guides</div><a href="curl.html">curl</a><a href="browser.html">Browser</a><a href="python-client.html" class="active">Python Client</a><div class="sidebar-section">Reference</div><a href="api.html">API Reference</a><a href="rfcs.html">RFC Coverage</a><a href="benchmarks.html">Benchmarks</a><a href="security.html">Security</a><a href="architecture.html">Architecture</a></nav>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Client Guide — nhttp3 Docs</title><link rel="stylesheet" href="style.css"></head><body>
+<nav class="sidebar"><a href="../index.html" class="sidebar-logo">nhttp3</a><div class="sidebar-section">Getting Started</div><a href="getting-started.html">Installation</a><a href="quickstart.html">Quick Start</a><a href="concepts.html">Core Concepts</a><div class="sidebar-section">Server Guides</div><a href="fastapi.html">FastAPI</a><a href="express.html">Node.js (native)</a><div class="sidebar-section">Client Guides</div><a href="curl.html">curl</a><a href="browser.html">Browser</a><a href="python-client.html" class="active">nhttp3-client</a><div class="sidebar-section">Reference</div><a href="api.html">API Reference</a><a href="rfcs.html">RFC Coverage</a><a href="benchmarks.html">Benchmarks</a><a href="security.html">Security</a><a href="architecture.html">Architecture</a></nav>
 <main class="content">
-<div class="breadcrumb"><a href="../index.html">nhttp3</a> / docs / python-client</div>
+  <div class="breadcrumb"><a href="../index.html">nhttp3</a> / docs / client</div>
+  <h1><span>nhttp3</span>-client</h1>
+  <p>Built-in HTTP/3 client for testing any nhttp3 server. Supports GET, POST, verbose output, and timing.</p>
 
-<h1><span>Python</span> Client</h1>
-<p>Async HTTP/3 client with multiplexed streams — no head-of-line blocking on parallel requests.</p>
+  <h2>Basic <span>Usage</span></h2>
+  <pre><code><span class="cm"># GET</span>
+cargo run -p nhttp3-server --bin nhttp3-client -- https://localhost:4433/
 
-<h2>Basic GET</h2>
-<pre><code><span class="kw">import</span> nhttp3, asyncio
+<span class="cm"># POST with body</span>
+cargo run -p nhttp3-server --bin nhttp3-client -- \
+  -X POST -d <span class="str">'{"hello":"world"}'</span> https://localhost:4433/echo
 
-<span class="kw">async def</span> <span class="fn">main</span>():
-    ep = <span class="kw">await</span> nhttp3.Endpoint.<span class="fn">bind</span>(<span class="str">"0.0.0.0"</span>, <span class="num">0</span>)
-    conn = <span class="kw">await</span> ep.<span class="fn">connect</span>(<span class="str">"localhost"</span>, <span class="num">4433</span>)
-    send, recv = <span class="kw">await</span> conn.<span class="fn">open_bidi_stream</span>()
+<span class="cm"># Verbose (headers + timing)</span>
+cargo run -p nhttp3-server --bin nhttp3-client -- -v https://localhost:4433/health</code></pre>
 
-    <span class="kw">await</span> send.<span class="fn">write</span>(b<span class="str">"GET / HTTP/3\r\n\r\n"</span>)
-    <span class="kw">await</span> send.<span class="fn">finish</span>()
+  <h2>Verbose <span>Output</span></h2>
+  <pre><code>* Connecting to localhost:4433 over QUIC...
+* QUIC connected in 3.6ms
+* Remote: 127.0.0.1:4433
+> GET /health HTTP/3
+>
+< HTTP/3 200 OK
+< content-type: application/json
+< server: nhttp3
+<
+{"status":"ok"}
 
-    data = <span class="kw">await</span> recv.<span class="fn">read</span>(<span class="num">65536</span>)
-    <span class="fn">print</span>(data)
+* Connect:  3.6ms
+* Response: 4.7ms
+* Total:    5.1ms
+* Bytes:    15</code></pre>
 
-asyncio.<span class="fn">run</span>(main())</code></pre>
+  <h2><span>Flags</span></h2>
+  <table>
+    <thead><tr><th>Flag</th><th>Description</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td><code>-v</code></td><td>Verbose — show headers, timing</td><td><code>-v https://...</code></td></tr>
+      <tr><td><code>-X METHOD</code></td><td>HTTP method</td><td><code>-X POST</code></td></tr>
+      <tr><td><code>-d BODY</code></td><td>Request body</td><td><code>-d '{"k":"v"}'</code></td></tr>
+    </tbody>
+  </table>
 
-<h2>Parallel Requests</h2>
-<pre><code><span class="cm"># 10 concurrent requests — each on its own QUIC stream</span>
-<span class="kw">async def</span> <span class="fn">fetch</span>(conn, path):
-    send, recv = <span class="kw">await</span> conn.<span class="fn">open_bidi_stream</span>()
-    <span class="kw">await</span> send.<span class="fn">write</span>(f<span class="str">"GET {path}\r\n\r\n"</span>.encode())
-    <span class="kw">await</span> send.<span class="fn">finish</span>()
-    <span class="kw">return await</span> recv.<span class="fn">read</span>(<span class="num">65536</span>)
+  <h2>Works with <span>any server</span></h2>
+  <p>The client speaks standard HTTP/3. It connects to:</p>
+  <ul>
+    <li><strong>Python:</strong> <code>nhttp3.serve(app, port=4433)</code></li>
+    <li><strong>Node.js:</strong> <code>serve(4433, handler)</code></li>
+    <li><strong>Rust:</strong> <code>cargo run -p nhttp3-server</code></li>
+    <li><strong>Proxy:</strong> <code>nhttp3-server --proxy http://localhost:8000</code></li>
+  </ul>
 
-results = <span class="kw">await</span> asyncio.<span class="fn">gather</span>(
-    *[<span class="fn">fetch</span>(conn, f<span class="str">"/item/{i}"</span>) <span class="kw">for</span> i <span class="kw">in</span> range(<span class="num">10</span>)]
-)</code></pre>
+  <div class="callout tip">
+    <div class="callout-title">Why not curl?</div>
+    Many curl installs don't have HTTP/3. nhttp3-client always works because it's built from the same codebase.
+  </div>
 
-<h2>Source</h2>
-<p><a href="https://github.com/ArnBon/nhttp3/blob/main/examples/client/python_client.py">examples/client/python_client.py</a></p>
-
-</main></body></html>
+  <h2>Agent-friendly <span>copy</span></h2>
+  <p>Markdown versions for agents and LLMs:</p>
+  <ul>
+    <li><a href="https://github.com/ArnBon/nhttp3/blob/main/docs/guides/curl.md">docs/guides/curl.md</a></li>
+    <li><a href="https://github.com/ArnBon/nhttp3/blob/main/docs/guides/browser.md">docs/guides/browser.md</a></li>
+    <li><a href="https://github.com/ArnBon/nhttp3/blob/main/docs/guides/python-server.md">docs/guides/python-server.md</a></li>
+    <li><a href="https://github.com/ArnBon/nhttp3/blob/main/docs/guides/nodejs-server.md">docs/guides/nodejs-server.md</a></li>
+    <li><a href="https://github.com/ArnBon/nhttp3/blob/main/docs/guides/rust-server.md">docs/guides/rust-server.md</a></li>
+  </ul>
+</main>
+</body></html>
