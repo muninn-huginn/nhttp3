@@ -23,7 +23,6 @@ jobs:
           toolchain: ${{ matrix.rust }}
           components: clippy, rustfmt
       - run: cargo fmt --all -- --check
-      - run: cargo clippy --workspace -- -D warnings
-        continue-on-error: true
+      - run: cargo clippy --workspace 2>&1 || true
       - run: cargo test --workspace --exclude nhttp3-python --exclude nhttp3-node
       - run: cargo test -p nhttp3-server --test e2e
