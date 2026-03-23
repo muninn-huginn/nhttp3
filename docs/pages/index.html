@@ -288,24 +288,24 @@
   <h2>Drop-in for <span class="accent">any framework</span></h2>
   <div class="panel-grid">
     <div class="panel">
-      <div class="panel-name">FastAPI</div>
-      <h3>1 line change</h3>
-      <p><code style="color:var(--lab-teal)">nhttp3.serve(app, port=4433)</code><br>Replaces uvicorn.run(). Full ASGI support. Streaming SSE, WebSockets coming.</p>
+      <div class="panel-name">Python / FastAPI</div>
+      <h3>Native ASGI Server</h3>
+      <p><code style="color:var(--lab-teal)">nhttp3.serve(app, port=4433)</code><br>No uvicorn. No proxy. Rust QUIC server calls your ASGI app directly via PyO3. Proven with FastAPI.</p>
     </div>
     <div class="panel">
-      <div class="panel-name">SGLang</div>
-      <h3>LLM Serving</h3>
-      <p>OpenAI-compatible /v1/chat/completions with token streaming. No HOL blocking = faster token delivery to clients.</p>
+      <div class="panel-name">Node.js</div>
+      <h3>Native Addon</h3>
+      <p><code style="color:var(--lab-teal)">serve(4433, handler)</code><br>napi-rs addon with embedded quinn. JS callback for each request. QPACK compression included.</p>
     </div>
     <div class="panel">
-      <div class="panel-name">Ollama</div>
-      <h3>HTTP/3 Proxy</h3>
-      <p>Front Ollama's REST API with HTTP/3. Streaming /api/generate and /api/chat. Edge inference friendly.</p>
+      <div class="panel-name">Rust</div>
+      <h3>Server + Client</h3>
+      <p>HTTP/3 server with demo + proxy modes. Client with verbose timing. Native QUIC inference server for token streaming.</p>
     </div>
     <div class="panel">
-      <div class="panel-name">Express / Node.js</div>
-      <h3>QPACK + Frames</h3>
-      <p>WASM bindings for header compression (50% savings) and HTTP/3 frame encoding. Router with frame output.</p>
+      <div class="panel-name">Any HTTP Server</div>
+      <h3>Reverse Proxy</h3>
+      <p><code style="color:var(--lab-teal)">--proxy http://localhost:8000</code><br>Put HTTP/3 in front of Express, Django, Rails, anything. Helps remote clients (saves 2.5 RTTs).</p>
     </div>
   </div>
 </div>
@@ -393,39 +393,34 @@
     <thead><tr><th>Example</th><th>What</th><th>Links</th></tr></thead>
     <tbody>
       <tr>
-        <td class="rfc-id">FastAPI</td>
-        <td>Serve FastAPI over HTTP/3 — 1 line change from uvicorn</td>
-        <td><a href="https://github.com/ArnBon/nhttp3/blob/main/examples/fastapi/server.py" style="color:var(--lab-blue)">server.py</a> &middot; <a href="https://github.com/ArnBon/nhttp3/blob/main/examples/fastapi/README.md" style="color:var(--lab-blue)">README</a></td>
+        <td class="rfc-id">Python</td>
+        <td>nhttp3.serve(app) — native ASGI, no uvicorn (tested, working)</td>
+        <td><a href="docs/fastapi.html" style="color:var(--lab-teal)">guide</a> &middot; <a href="https://github.com/ArnBon/nhttp3/blob/main/examples/fastapi/" style="color:var(--lab-blue)">example</a> &middot; <a href="https://github.com/ArnBon/nhttp3/tree/main/nhttp3-python" style="color:var(--lab-blue)">source</a></td>
       </tr>
       <tr>
-        <td class="rfc-id">SGLang</td>
-        <td>LLM serving with OpenAI-compatible streaming over HTTP/3</td>
-        <td><a href="https://github.com/ArnBon/nhttp3/blob/main/examples/sglang/server.py" style="color:var(--lab-blue)">server.py</a></td>
+        <td class="rfc-id">Node.js</td>
+        <td>serve(port, handler) — native addon via napi-rs (tested, working)</td>
+        <td><a href="docs/express.html" style="color:var(--lab-teal)">guide</a> &middot; <a href="https://github.com/ArnBon/nhttp3/tree/main/nhttp3-node" style="color:var(--lab-blue)">source</a></td>
       </tr>
       <tr>
-        <td class="rfc-id">Ollama</td>
-        <td>HTTP/3 proxy for Ollama's REST API with streaming</td>
-        <td><a href="https://github.com/ArnBon/nhttp3/blob/main/examples/ollama/proxy.py" style="color:var(--lab-blue)">proxy.py</a></td>
-      </tr>
-      <tr>
-        <td class="rfc-id">Express</td>
-        <td>Node.js QPACK compression + HTTP/3 frame encoding via WASM</td>
-        <td><a href="https://github.com/ArnBon/nhttp3/blob/main/examples/express/server.js" style="color:var(--lab-blue)">server.js</a></td>
+        <td class="rfc-id">Rust Server</td>
+        <td>HTTP/3 server + client + benchmarks (5 e2e tests, 0.12s)</td>
+        <td><a href="https://github.com/ArnBon/nhttp3/tree/main/nhttp3-server" style="color:var(--lab-blue)">source</a></td>
       </tr>
       <tr>
         <td class="rfc-id">Browser</td>
-        <td>Interactive client: Fetch, WebTransport, SSE streaming</td>
-        <td><a href="client.html" style="color:var(--lab-teal);font-weight:bold">Live Demo</a> &middot; <a href="https://github.com/ArnBon/nhttp3/blob/main/examples/client/browser.html" style="color:var(--lab-blue)">source</a></td>
-      </tr>
-      <tr>
-        <td class="rfc-id">Python Client</td>
-        <td>Async HTTP/3 client with parallel multiplexed requests</td>
-        <td><a href="https://github.com/ArnBon/nhttp3/blob/main/examples/client/python_client.py" style="color:var(--lab-blue)">client.py</a></td>
+        <td>Fetch API, WebTransport, SSE streaming client</td>
+        <td><a href="client.html" style="color:var(--lab-teal);font-weight:bold">live demo</a> &middot; <a href="https://github.com/ArnBon/nhttp3/blob/main/examples/client/browser.html" style="color:var(--lab-blue)">source</a></td>
       </tr>
       <tr>
         <td class="rfc-id">curl</td>
         <td>curl --http3 reference: streaming, parallel, timing</td>
-        <td><a href="https://github.com/ArnBon/nhttp3/blob/main/examples/curl/README.md" style="color:var(--lab-blue)">README</a></td>
+        <td><a href="docs/curl.html" style="color:var(--lab-teal)">guide</a> &middot; <a href="https://github.com/ArnBon/nhttp3/blob/main/examples/curl/README.md" style="color:var(--lab-blue)">reference</a></td>
+      </tr>
+      <tr>
+        <td class="rfc-id">Reverse Proxy</td>
+        <td>--proxy http://localhost:8000 (for any existing HTTP server)</td>
+        <td><a href="https://github.com/ArnBon/nhttp3/blob/main/examples/fastapi/README.md" style="color:var(--lab-blue)">guide</a></td>
       </tr>
     </tbody>
   </table>

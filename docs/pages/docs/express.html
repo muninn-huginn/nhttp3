@@ -1,35 +1,75 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Express / Node.js — nhttp3 Docs</title><link rel="stylesheet" href="style.css"></head><body>
-<nav class="sidebar"><a href="../index.html" class="sidebar-logo">nhttp3</a><div class="sidebar-section">Getting Started</div><a href="getting-started.html">Installation</a><a href="quickstart.html">Quick Start</a><a href="concepts.html">Core Concepts</a><div class="sidebar-section">Server Guides</div><a href="fastapi.html">FastAPI</a><a href="sglang.html">SGLang / LLM</a><a href="ollama.html">Ollama</a><a href="express.html" class="active">Express / Node.js</a><div class="sidebar-section">Client Guides</div><a href="curl.html">curl</a><a href="browser.html">Browser</a><a href="python-client.html">Python Client</a><div class="sidebar-section">Reference</div><a href="api.html">API Reference</a><a href="rfcs.html">RFC Coverage</a><a href="benchmarks.html">Benchmarks</a><a href="security.html">Security</a><a href="architecture.html">Architecture</a></nav>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Node.js — nhttp3 Docs</title><link rel="stylesheet" href="style.css"></head><body>
+<nav class="sidebar"><a href="../index.html" class="sidebar-logo">nhttp3</a><div class="sidebar-section">Getting Started</div><a href="getting-started.html">Installation</a><a href="quickstart.html">Quick Start</a><a href="concepts.html">Core Concepts</a><div class="sidebar-section">Server Guides</div><a href="fastapi.html">FastAPI</a><a href="express.html" class="active">Node.js (native)</a><div class="sidebar-section">Client Guides</div><a href="curl.html">curl</a><a href="browser.html">Browser</a><a href="python-client.html">Python Client</a><div class="sidebar-section">Reference</div><a href="api.html">API Reference</a><a href="rfcs.html">RFC Coverage</a><a href="benchmarks.html">Benchmarks</a><a href="security.html">Security</a><a href="architecture.html">Architecture</a></nav>
 <main class="content">
-<div class="breadcrumb"><a href="../index.html">nhttp3</a> / docs / express</div>
+  <div class="breadcrumb"><a href="../index.html">nhttp3</a> / docs / node.js</div>
+  <h1><span>Node.js</span> Native HTTP/3</h1>
+  <p>Native addon via napi-rs. Real QUIC server calling your JS handler directly. No proxy.</p>
 
-<h1><span>Express</span> / Node.js</h1>
-<p>Use nhttp3's WASM bindings for QPACK header compression and HTTP/3 frame encoding in Node.js.</p>
+  <h2>Setup</h2>
+  <pre><code>cd nhttp3-node
+npm install
+npx napi build --release</code></pre>
 
-<h2>Install</h2>
-<pre><code>cd nhttp3-wasm && wasm-pack build --target nodejs
-npm link ./pkg</code></pre>
+  <h2>Express-like <span>Server</span></h2>
+  <pre><code><span class="kw">const</span> { serve } = <span class="fn">require</span>(<span class="str">'nhttp3-node'</span>);
 
-<h2>QPACK Compression</h2>
-<pre><code><span class="kw">const</span> nhttp3 = <span class="fn">require</span>(<span class="str">'nhttp3'</span>);
+<span class="fn">serve</span>(<span class="num">4433</span>, (req) => {
+  console.<span class="fn">log</span>(<span class="str">`${req.method} ${req.path}`</span>);
 
-<span class="kw">const</span> headers = [
-  [<span class="str">':method'</span>, <span class="str">'GET'</span>],
-  [<span class="str">':path'</span>, <span class="str">'/api/users'</span>],
-  [<span class="str">'accept'</span>, <span class="str">'application/json'</span>],
-];
+  <span class="kw">if</span> (req.path === <span class="str">'/'</span>) {
+    <span class="kw">return</span> {
+      status: <span class="num">200</span>,
+      headers: [[<span class="str">'content-type'</span>, <span class="str">'application/json'</span>]],
+      body: JSON.<span class="fn">stringify</span>({ hello: <span class="str">'world'</span>, protocol: <span class="str">'h3'</span> }),
+    };
+  }
 
-<span class="kw">const</span> encoded = nhttp3.<span class="fn">encode_headers</span>(headers);
-<span class="kw">const</span> decoded = nhttp3.<span class="fn">decode_headers</span>(encoded);
-console.<span class="fn">log</span>(<span class="str">`Compressed: ${encoded.length} bytes (was ${rawSize})`</span>);</code></pre>
+  <span class="kw">return</span> { status: <span class="num">404</span>, headers: [], body: <span class="str">'not found'</span> };
+});</code></pre>
 
-<h2>Frame Encoding</h2>
-<pre><code><span class="kw">const</span> body = <span class="kw">new</span> TextEncoder().<span class="fn">encode</span>(<span class="str">'{"ok":true}'</span>);
-<span class="kw">const</span> dataFrame = nhttp3.<span class="fn">encode_data_frame</span>(body);
-<span class="kw">const</span> settingsFrame = nhttp3.<span class="fn">encode_settings_frame</span>();</code></pre>
+  <h2>Test</h2>
+  <pre><code><span class="cm"># Terminal 1: start Node.js HTTP/3 server</span>
+node test.js
 
-<h2>Source</h2>
-<p><a href="https://github.com/ArnBon/nhttp3/blob/main/examples/express/server.js">examples/express/server.js</a> — Full Node.js example with Express-like router.</p>
+<span class="cm"># Terminal 2: hit it with the client</span>
+cargo run -p nhttp3-server --bin nhttp3-client -- https://localhost:4433/
+<span class="cm"># → {"hello":"world","protocol":"h3"}</span></code></pre>
 
-</main></body></html>
+  <h2>QPACK <span>Compression</span></h2>
+  <pre><code><span class="kw">const</span> { encodeHeaders, decodeHeaders } = <span class="fn">require</span>(<span class="str">'nhttp3-node'</span>);
+
+<span class="kw">const</span> headers = [[<span class="str">':method'</span>, <span class="str">'GET'</span>], [<span class="str">':path'</span>, <span class="str">'/api'</span>], [<span class="str">'accept'</span>, <span class="str">'application/json'</span>]];
+<span class="kw">const</span> encoded = <span class="fn">encodeHeaders</span>(headers);
+<span class="kw">const</span> decoded = <span class="fn">decodeHeaders</span>(encoded);
+<span class="cm">// 3 headers → 28 bytes → 3 decoded (roundtrip verified)</span></code></pre>
+
+  <h2>How it <span>Works</span></h2>
+  <p>The addon embeds quinn (Rust QUIC library) and runs a tokio runtime. When an HTTP/3 request arrives, it calls your JS handler via napi-rs ThreadsafeFunction. The response goes directly back over the QUIC stream.</p>
+  <pre><code>HTTP/3 request → quinn → h3 → napi → JS callback → napi → h3 → quinn → QUIC response</code></pre>
+
+  <div class="callout tip">
+    <div class="callout-title">No proxy</div>
+    This is not a proxy in front of Express. The QUIC server runs inside your Node.js process. Your handler is called directly for each HTTP/3 request.
+  </div>
+
+  <h2>Handler <span>API</span></h2>
+  <pre><code><span class="cm">// Request object</span>
+{
+  method: <span class="str">'GET'</span>,            <span class="cm">// HTTP method</span>
+  path: <span class="str">'/api/users'</span>,       <span class="cm">// Request path</span>
+  headers: [[<span class="str">'accept'</span>, <span class="str">'*/*'</span>]], <span class="cm">// [name, value] pairs</span>
+  body: Buffer             <span class="cm">// Request body (for POST/PUT)</span>
+}
+
+<span class="cm">// Return a response object</span>
+{
+  status: <span class="num">200</span>,
+  headers: [[<span class="str">'content-type'</span>, <span class="str">'application/json'</span>]],
+  body: <span class="str">'{"ok": true}'</span>
+}</code></pre>
+
+  <h2>Source</h2>
+  <p><a href="https://github.com/ArnBon/nhttp3/tree/main/nhttp3-node">nhttp3-node/</a> — Cargo.toml, Rust addon, JS wrapper, test file.</p>
+</main>
+</body></html>
